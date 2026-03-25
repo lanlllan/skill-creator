@@ -1,0 +1,21 @@
+# IDE
+.vscode/
+.idea/
+.cursor/
+.agent_team/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# State lock files
+.state.json.lock
+.state.json.tmp
+
+# OS
+Thumbs.db
+.DS_Store
