@@ -66,6 +66,27 @@ python run.py batch --file ../tmp/test.yaml
 
 ## 更新记录
 
+### v10.0.0（Phase 12）— 2026-03-30
+
+**内容感知评分（Content-Aware Scoring）**
+
+核心变更：
+- 新增 `content` 评分维度（20 分），原有 5 维度权重同步调整（structure 20→15, functionality 30→25, quality 25→20, docs 15→10, standard 10→10）
+- `content` 维度包含 5 个子评分项：
+  - 占位符残留率（6 分）：检测 SKILL.md 中 "场景1/能力1" 等未替换占位符，阈值 0/20/50%
+  - 内容多样性（4 分）：SKILL.md "适用场景" 与 "核心能力" 段落项 bigram Jaccard 相似度去重
+  - 函数实质性（4 分）：入口脚本有效代码行数（排除 pass/import/shebang 等 trivial 语句）
+  - USAGE.md 示例完整性（3 分）：非占位符代码块计数
+  - 规约覆盖率（3 分）：`.skill-spec.yaml` 字段填充率（无 spec 文件时满分）
+- 评分报告新增 content 维度建议（低于满分时提示改进方向）
+- 基线兼容：高/中/低质量 skill 总分偏差 ≤ 5 分
+
+修改文件：`creator/scorer.py`
+新增文件：`tests/test_scoring_phase12.py`
+测试：323 → 367 passed（+44 新增，含 1 个审查修复回归用例）
+
+---
+
 ### v9.0.0（Phase 11）— 2026-03-30
 
 **富内容模板（Rich Content Templates）**

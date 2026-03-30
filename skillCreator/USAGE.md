@@ -554,5 +554,5 @@ python run.py batch --file skills.yaml
 
 ---
 
-*Skill Creator 版本：v9.0.0*  
+*Skill Creator 版本：v10.0.0*  
 *最后更新：2026-03-30*

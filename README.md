@@ -12,7 +12,7 @@ skill-creator/
 │   │   ├── paths.py                # 路径解析
 │   │   ├── validators.py           # 名称/版本校验
 │   │   ├── templates.py            # 模板引擎（Jinja2 + 发现 + 回退）
-│   │   ├── scorer.py               # 质量评分器
+│   │   ├── scorer.py               # 质量评分器（6 维度，含 content 维度）
 │   │   ├── state_manager.py        # .state.json 结构化状态管理
 │   │   ├── readme_manager.py       # 兼容层（转发到 state_manager）
 │   │   ├── security.py             # 安全扫描引擎（Phase 5）
@@ -32,7 +32,7 @@ skill-creator/
 │   │   ├── python-guided/          # Python 规约驱动富模板（4 个 .j2，Phase 11）
 │   │   ├── shell/                  # Shell 类型模板（4 个 .j2）
 │   │   └── shell-guided/           # Shell 规约驱动富模板（4 个 .j2，Phase 11）
-│   ├── tests/                      # pytest 测试套件（323 用例）
+│   ├── tests/                      # pytest 测试套件（367 用例）
 │   ├── SKILL.md                    # 技能元数据
 │   ├── USAGE.md                    # 使用指南
 │   └── README.md                   # 工具说明与更新记录
@@ -93,7 +93,7 @@ Remove-Item -Recurse -Force ../tmp/test-skill
 ```bash
 cd skillCreator
 python -m pytest tests/ -v --tb=short
-# 323 个用例，覆盖 validators / create_skill / batch / state_manager / security / scan / templates / Phase 7 验证增强 / Phase 8 打包 / Phase 10 规约系统 / Phase 11 富内容模板
+# 367 个用例，覆盖 validators / create_skill / batch / state_manager / security / scan / templates / Phase 7 验证增强 / Phase 8 打包 / Phase 10 规约系统 / Phase 11 富内容模板 / Phase 12 内容感知评分
 ```
 
 ## 迭代状态
@@ -111,4 +111,5 @@ python -m pytest tests/ -v --tb=short
 | 8   | 打包与分发 | ✅ 已完成 | v7.0.0 |
 | 10  | 规约系统（Skill Specification） | ✅ 已完成 | v8.0.0 |
 | 11  | 富内容模板（Rich Content Templates） | ✅ 已完成 | v9.0.0 |
+| 12  | 内容感知评分（Content-Aware Scoring） | ✅ 已完成 | v10.0.0 |
 | 9   | 生态集成（ClawHub） | 🔲 远期 | API 就绪后 |

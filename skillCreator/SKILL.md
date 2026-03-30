@@ -1,7 +1,7 @@
 ---
 name: skill-creator
 description: 创建符合 OpenClaw 规范的新 Skill，自动化生成目录结构、模板文件和文档
-version: 9.0.0
+version: 10.0.0
 author: Zhiheng Yang
 tags: [tooling, scaffolding, development]
 ---
@@ -82,7 +82,7 @@ skill-creator/
 │   ├── paths.py                # 路径解析
 │   ├── validators.py           # 名称/版本校验
 │   ├── templates.py            # 模板渲染（Jinja2 + 回退）
-│   ├── scorer.py               # 质量评分器（python/shell 双入口）
+│   ├── scorer.py               # 质量评分器（6 维度：structure/functionality/quality/docs/standard/content）
 │   ├── security.py             # 安全扫描引擎
     │   ├── packager.py             # 打包引擎（.skillignore / zip / SHA256）
 │   ├── spec.py                 # 规约引擎（SkillSpec / 骨架生成 / 加载 / 验证）
@@ -94,7 +94,7 @@ skill-creator/
 │   ├── python-guided/          # Python 规约驱动富模板（*.j2）
 │   ├── shell/                  # Shell 类型模板（*.j2）
 │   └── shell-guided/           # Shell 规约驱动富模板（*.j2）
-├── tests/                      # pytest 测试套件（323 用例）
+├── tests/                      # pytest 测试套件（367 用例）
 ├── SKILL.md                    # 技能说明
 └── USAGE.md                    # 使用指南
 ```
@@ -365,6 +365,22 @@ python skill-creator/run.py batch --file skills.yaml
 - 检查必需字段：`name`、`description`、`version`
 - 正则检查 name 格式：`^[a-z][a-z0-9-]*$`
 - 文件存在性与入口脚本（`run.py` / `run.sh`）可执行权限检查
+
+### 质量评分器（scorer）
+- 6 维度评分体系，满分 100 分：
+  - **structure**（15 分）：目录结构完整性
+  - **functionality**（25 分）：入口脚本功能健壮性
+  - **quality**（20 分）：代码质量（异常处理、退出码等）
+  - **docs**（10 分）：文档完整性（SKILL.md 章节、USAGE.md 存在性、Markdown 链接有效性）
+  - **standard**（10 分）：编码规范（shebang、模块注释、占位符残留）
+  - **content**（20 分）：内容质量（Phase 12 新增）
+- **content 维度子评分**：
+  - 占位符残留率（6 分）：检测 SKILL.md 中 "场景1/能力1" 等未替换占位符
+  - 内容多样性（4 分）：SKILL.md "适用场景" 与 "核心能力" 段落的语义去重（bigram Jaccard 相似度）
+  - 函数实质性（4 分）：入口脚本有效代码行数（排除 trivial 语句）
+  - USAGE.md 示例完整性（3 分）：非占位符代码块计数
+  - 规约覆盖率（3 分）：`.skill-spec.yaml` 字段填充率（无 spec 文件时满分）
+- 自动生成评分报告，含分维度得分和改进建议
 
 ### 路径管理
 - `create` 写入 `--output`（默认由 `get_skills_temp_dir()` 解析，与 `archive/clean` 一致）
