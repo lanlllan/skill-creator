@@ -7,11 +7,17 @@ import yaml
 from datetime import datetime
 from pathlib import Path
 
+import shutil
+
 from creator.paths import get_skills_temp_dir
 from creator.validators import validate_skill_name, validate_version
 from creator.templates import generate_files
 from creator.scorer import SkillScorer
 from creator.state_manager import add_skill
+from creator.spec import (
+    generate_spec_skeleton, save_spec, load_spec, validate_spec,
+    spec_to_template_vars, SPEC_FILENAME,
+)
 
 KNOWN_PARAMS = frozenset({'name', 'description', 'version', 'author', 'tags', 'output'})
 
@@ -169,7 +175,9 @@ def _validate_markdown_links(skill_dir: Path, warnings: list):
 
 def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
                  skill_type: str = 'python',
-                 template_dir: str | None = None) -> int:
+                 template_dir: str | None = None,
+                 spec_path: 'Path | None' = None,
+                 spec_variables: dict | None = None) -> int:
     """纯函数：从 params dict 创建 skill，返回退出码（0=成功，非0=失败）。
 
     params 字段契约（唯一来源，禁止双口径）：
@@ -183,6 +191,8 @@ def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
     可选参数 _out：dict，供调用方获取额外输出（score、skill_name、failure_reason）。
     skill_type：Skill 类型（python / shell），控制使用的模板集。
     template_dir：自定义模板目录路径，覆盖内置模板。
+    spec_path：.skill-spec.yaml 路径，创建后复制到产出目录。
+    spec_variables：规约驱动的扩展变量（purpose/capabilities/commands 等），非 None 时启用富模板。
     """
     missing = {'name', 'description'} - params.keys()
     if missing:
@@ -241,10 +251,24 @@ def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
             'version': version,
             'date': datetime.now().strftime("%Y-%m-%d"),
         }
+        if spec_variables:
+            variables.update({k: v for k, v in spec_variables.items()
+                              if k not in variables or k in (
+                                  'purpose', 'capabilities', 'commands',
+                                  'error_handling', 'dependencies',
+                                  'dispatch_entries')})
 
+        guided = spec_variables is not None
         print("📝 生成文件...")
         generate_files(skill_dir, variables,
-                       skill_type=skill_type, template_dir=template_dir)
+                       skill_type=skill_type, template_dir=template_dir,
+                       guided=guided)
+
+        if spec_path:
+            dest_spec = skill_dir / SPEC_FILENAME
+            src_spec = Path(spec_path).resolve()
+            if src_spec != dest_spec and src_spec.exists():
+                shutil.copy2(src_spec, dest_spec)
 
         errors, warnings = validate_skill(skill_dir)
         if errors:
@@ -302,6 +326,11 @@ def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
 
 def main_create(args):
     """创建新 skill（CLI 适配层，负责交互式输入收集并构造 params dict）。"""
+    if getattr(args, 'spec', None):
+        return _create_from_spec(args)
+    if getattr(args, 'guided', False):
+        return _create_guided(args)
+
     if args.interactive:
         skill_name = args.name or input("Skill 名称（小写、短横线分隔）: ").strip()
         description = args.description or input("描述: ").strip()
@@ -338,6 +367,101 @@ def main_create(args):
     try:
         return create_skill(params, skill_type=skill_type,
                             template_dir=template_dir)
+    except ValueError as e:
+        print(f"❌ {e}")
+        return 1
+
+
+def _create_guided(args) -> int:
+    """--guided 路径：生成规约骨架，提示填充后再用 --spec 渲染。"""
+    if args.interactive:
+        skill_name = args.name or input("Skill 名称（小写、短横线分隔）: ").strip()
+        description = args.description or input("描述: ").strip()
+    else:
+        if not args.name or not args.description:
+            print("❌ --guided 非交互模式下需同时提供 --name 和 --description")
+            return 1
+        skill_name = args.name
+        description = args.description
+
+    params = {
+        'name': skill_name,
+        'description': description,
+        'version': getattr(args, 'version', '1.0.0') or '1.0.0',
+        'author': getattr(args, 'author', None),
+        'tags': getattr(args, 'tags', None),
+        'output': getattr(args, 'output', None),
+    }
+
+    raw_output = params.get('output')
+    output_dir = Path(raw_output).expanduser().resolve() if raw_output else get_skills_temp_dir()
+
+    normalized_name = str(skill_name).lower().replace(' ', '-')
+    skill_dir = output_dir / normalized_name
+    spec_path = skill_dir / SPEC_FILENAME
+
+    if spec_path.exists():
+        print(f"❌ 规约文件已存在：{spec_path}")
+        print("   如需重新生成，请先删除已有文件或使用其他输出目录")
+        return 1
+
+    skill_dir.mkdir(parents=True, exist_ok=True)
+
+    spec = generate_spec_skeleton(params)
+    save_spec(spec, spec_path)
+
+    print(f"📝 规约文件已生成：{spec_path}")
+    print("   请填充 purpose / capabilities / commands / error_handling 各字段")
+    print(f"   填充完成后运行：python run.py create --spec {spec_path}")
+    return 0
+
+
+def _create_from_spec(args) -> int:
+    """--spec 路径：从已有规约文件创建 Skill。"""
+    spec_path = Path(args.spec).resolve()
+
+    if getattr(args, 'interactive', False):
+        print("⚠️  --spec 模式下 --interactive 无效（参数已从规约文件加载）")
+
+    try:
+        spec = load_spec(spec_path)
+    except FileNotFoundError as e:
+        print(f"❌ {e}")
+        return 1
+    except (ValueError, Exception) as e:
+        print(f"❌ 规约加载失败：{e}")
+        return 1
+
+    errors, warnings = validate_spec(spec)
+
+    for e in errors:
+        print(f"  ❌ {e}")
+    for w in warnings:
+        print(f"  ⚠️  {w}")
+
+    strict = getattr(args, 'strict', False)
+    if strict and (errors or warnings):
+        print("规约验证未通过（--strict 模式）")
+        return 1
+
+    variables = spec_to_template_vars(spec)
+    params = {
+        'name': variables.get('name', ''),
+        'description': variables.get('description', ''),
+        'version': variables.get('version', '1.0.0'),
+        'author': variables.get('author', 'OpenClaw Assistant'),
+        'tags': variables.get('tags', []),
+        'output': getattr(args, 'output', None),
+    }
+
+    skill_type = getattr(args, 'type', 'python')
+    template_dir = getattr(args, 'template_dir', None)
+
+    try:
+        return create_skill(params, skill_type=skill_type,
+                            template_dir=template_dir,
+                            spec_path=spec_path,
+                            spec_variables=variables)
     except ValueError as e:
         print(f"❌ {e}")
         return 1

@@ -66,6 +66,50 @@ python run.py batch --file ../tmp/test.yaml
 
 ## 更新记录
 
+### v9.0.0（Phase 11）— 2026-03-30
+
+**富内容模板（Rich Content Templates）**
+
+核心变更：
+- 新增 `templates/python-guided/` 模板目录（4 个 .j2）：`create --spec` 自动使用，规约字段驱动生成内容丰富的产物
+- 新增 `templates/shell-guided/` 模板目录（4 个 .j2）：Shell 类型规约驱动模板（case/shift 参数解析）
+- `generate_files` 新增 `guided` 参数：控制模板路由，guided 模板降级策略（目录不存在时降级到标准模板）
+- `_expand_variables` 增加 `tags_list` 保留原始标签列表
+- `spec_to_template_vars` 增加 `name_snake`、`dispatch_entries`、`arg_flag` 预处理
+- `create_skill` 新增 `spec_variables` 参数：规约扩展变量传递
+- `_create_from_spec` 传递 `spec_variables` 启用富模板渲染
+- Python 模板：Result 数据类（含 `__bool__`）+ argparse 子命令自动生成 + TODO 步骤注释 + dispatch dict
+- Shell 模板：set -euo pipefail + 分级日志 + case/shift 参数解析（boolean shift 1 / 非 boolean shift 2）
+- dependencies 字段消费：SKILL.md 前置依赖段 + USAGE.md 环境要求段
+- 向后兼容：不加 --spec 时产物与旧版一致
+
+新增文件：`templates/python-guided/` 4 个 .j2、`templates/shell-guided/` 4 个 .j2、`tests/test_rich_templates_phase11.py`
+修改文件：`creator/spec.py`、`creator/templates.py`、`creator/commands/create.py`
+测试：290 → 323 passed（+33 新增，含 3 个审查修复回归用例）
+
+---
+
+### v8.0.0（Phase 10）— 2026-03-30
+
+**规约系统（Skill Specification）**
+
+核心变更：
+- 新增 `spec` 子命令：生成 `.skill-spec.yaml` 规约骨架（含结构化注释和填写引导）
+- `spec --validate`：验证规约完整性（非空、非占位符复制、长度合规、非 description 复制）
+- `create --guided`：引导式创建（生成规约骨架 → 提示填充 → 用 `--spec` 渲染）
+- `create --spec`：从已有规约文件创建 Skill（加载 → 验证 → 模板渲染 → 复制规约到产出）
+- `--strict` 模式：规约验证 error 或 warning 均阻断创建
+- 规约 schema 冻结兼容：旧代码忽略新字段，新代码缺失字段使用默认值
+- batch 集成：YAML 条目支持 `spec` 字段指定规约文件路径
+- packager 白名单：`.skill-spec.yaml` 豁免 dotfile 排除，打包后保留在包内
+- 互斥规则：`--guided` / `--spec` 互斥；`--spec` 模式下忽略 `--interactive`
+
+新增文件：`creator/spec.py`、`creator/commands/spec_cmd.py`、`tests/test_spec_phase10.py`
+修改文件：`run.py`、`creator/commands/create.py`、`creator/commands/batch.py`、`creator/packager.py`
+测试：251 → 290 passed（+39 新增）
+
+---
+
 ### v7.0.0（Phase 8）— 2026-03-27
 
 **打包与分发（Packaging & Distribution）**

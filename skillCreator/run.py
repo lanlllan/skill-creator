@@ -21,6 +21,7 @@ from creator.commands.clean import main_clean
 from creator.commands.batch import main_batch
 from creator.commands.scan import main_scan
 from creator.commands.package import main_package
+from creator.commands.spec_cmd import main_spec
 
 
 def main():
@@ -68,6 +69,13 @@ def main():
                                default='python', help='Skill 类型（默认 python）')
     create_parser.add_argument('--template-dir', help='自定义模板目录路径（覆盖内置模板）')
 
+    create_spec_group = create_parser.add_mutually_exclusive_group()
+    create_spec_group.add_argument('--guided', action='store_true',
+                                   help='引导式创建（先生成规约骨架，提示填充后再渲染）')
+    create_spec_group.add_argument('--spec', help='从已有规约文件创建（.skill-spec.yaml 路径）')
+    create_parser.add_argument('--strict', action='store_true',
+                               help='严格模式：规约验证有任何问题时阻断创建')
+
     validate_parser = subparsers.add_parser('validate', help='验证 skill')
     validate_parser.add_argument('path', help='skill 目录路径')
     validate_parser.add_argument('--no-security', action='store_true',
@@ -93,6 +101,15 @@ def main():
     scan_parser.add_argument('path', help='skill 目录路径')
     scan_parser.add_argument('--json', action='store_true', help='JSON 格式输出')
 
+    spec_parser = subparsers.add_parser('spec', help='规约骨架生成与验证')
+    spec_parser.add_argument('--name', '-n', help='Skill 名称（生成模式下必填）')
+    spec_parser.add_argument('--description', '-d', help='描述（生成模式下必填）')
+    spec_parser.add_argument('--version', '-v', default='1.0.0', help='版本号（默认 1.0.0）')
+    spec_parser.add_argument('--author', '-a', help='作者')
+    spec_parser.add_argument('--tags', '-t', help='标签，逗号分隔')
+    spec_parser.add_argument('--output', '-o', help='规约输出目录（默认当前目录）')
+    spec_parser.add_argument('--validate', help='验证模式：指向 .skill-spec.yaml 路径')
+
     package_parser = subparsers.add_parser('package', help='打包 skill 为 .skill 文件')
     package_parser.add_argument('path', help='skill 目录路径')
     package_parser.add_argument('--output', '-o', help='包输出目录（默认 skill 同级目录）')
@@ -113,6 +130,7 @@ def main():
         'batch': main_batch,
         'scan': main_scan,
         'package': main_package,
+        'spec': main_spec,
     }
     return dispatch[args.command](args)
 

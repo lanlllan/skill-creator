@@ -214,8 +214,8 @@ class TestBatchFailOnSecurity:
 
         original_create = batch_mod.create_skill
 
-        def patched_create(params, _out=None, skip_state=False):
-            rc = original_create(params, _out=_out, skip_state=skip_state)
+        def patched_create(params, _out=None, skip_state=False, **kwargs):
+            rc = original_create(params, _out=_out, skip_state=skip_state, **kwargs)
             if rc == 0 and _out:
                 skill_dir = out / _out.get('skill_name', params['name'])
                 (skill_dir / ".env").write_text("SECRET=real_value", encoding='utf-8')

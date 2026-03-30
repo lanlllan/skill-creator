@@ -104,6 +104,14 @@ def main_batch(args):
             'output': raw_output,
         }
 
+        spec_field = item.get('spec')
+        resolved_spec_path = None
+        if spec_field:
+            sp = Path(spec_field)
+            if not sp.is_absolute():
+                sp = yaml_path.parent / sp
+            resolved_spec_path = sp.resolve()
+
         print(f"\n{'─'*40}")
         print(f"▶ 创建：{raw_name}")
         print('─' * 40)
@@ -113,7 +121,8 @@ def main_batch(args):
         result_info: dict = {}
         try:
             rc = create_skill(params, _out=result_info,
-                              skip_state=fail_on_security)
+                              skip_state=fail_on_security,
+                              spec_path=resolved_spec_path)
             if rc == 0:
                 from creator.security import scan_directory
                 skill_dir = target_root / normalized

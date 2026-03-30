@@ -17,6 +17,7 @@ skill-creator/
 │   │   ├── readme_manager.py       # 兼容层（转发到 state_manager）
 │   │   ├── security.py             # 安全扫描引擎（Phase 5）
     │   │   ├── packager.py             # 打包引擎（Phase 8）
+    │   │   ├── spec.py                 # 规约引擎（Phase 10）
     │   │   └── commands/               # 各 CLI 命令实现
     │   │       ├── create.py           # create 命令
     │   │       ├── validate.py         # validate 命令
@@ -24,11 +25,14 @@ skill-creator/
     │   │       ├── clean.py            # clean 命令
     │   │       ├── batch.py            # batch 命令
     │   │       ├── scan.py             # scan 命令（安全扫描）
-    │   │       └── package.py          # package 命令（打包）
-│   ├── templates/                  # Jinja2 模板目录（Phase 6）
+    │   │       ├── package.py          # package 命令（打包）
+    │   │       └── spec_cmd.py         # spec 命令（规约生成与验证）
+│   ├── templates/                  # Jinja2 模板目录（Phase 6 + Phase 11）
 │   │   ├── python/                 # Python 类型模板（4 个 .j2）
-│   │   └── shell/                  # Shell 类型模板（4 个 .j2）
-│   ├── tests/                      # pytest 测试套件（251 用例）
+│   │   ├── python-guided/          # Python 规约驱动富模板（4 个 .j2，Phase 11）
+│   │   ├── shell/                  # Shell 类型模板（4 个 .j2）
+│   │   └── shell-guided/           # Shell 规约驱动富模板（4 个 .j2，Phase 11）
+│   ├── tests/                      # pytest 测试套件（323 用例）
 │   ├── SKILL.md                    # 技能元数据
 │   ├── USAGE.md                    # 使用指南
 │   └── README.md                   # 工具说明与更新记录
@@ -60,6 +64,12 @@ python run.py scan ./path/to/skill
 # 打包
 python run.py package ./path/to/skill
 
+# 规约骨架生成
+python run.py spec -n my-skill -d "描述"
+
+# 从规约创建
+python run.py create --spec .skill-spec.yaml
+
 # 归档
 python run.py archive my-skill
 ```
@@ -83,7 +93,7 @@ Remove-Item -Recurse -Force ../tmp/test-skill
 ```bash
 cd skillCreator
 python -m pytest tests/ -v --tb=short
-# 251 个用例，覆盖 validators / create_skill / batch / state_manager / security / scan / templates / Phase 7 验证增强 / Phase 8 打包
+# 323 个用例，覆盖 validators / create_skill / batch / state_manager / security / scan / templates / Phase 7 验证增强 / Phase 8 打包 / Phase 10 规约系统 / Phase 11 富内容模板
 ```
 
 ## 迭代状态
@@ -99,4 +109,6 @@ python -m pytest tests/ -v --tb=short
 | 6   | 模板系统增强（Jinja2） | ✅ 已完成 | v5.0.0 |
 | 7   | 验证能力增强 | ✅ 已完成 | v6.0.0 |
 | 8   | 打包与分发 | ✅ 已完成 | v7.0.0 |
+| 10  | 规约系统（Skill Specification） | ✅ 已完成 | v8.0.0 |
+| 11  | 富内容模板（Rich Content Templates） | ✅ 已完成 | v9.0.0 |
 | 9   | 生态集成（ClawHub） | 🔲 远期 | API 就绪后 |

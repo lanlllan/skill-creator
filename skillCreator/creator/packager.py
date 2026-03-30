@@ -15,10 +15,14 @@ ALWAYS_EXCLUDE_DIRS = frozenset({
 })
 
 ALWAYS_EXCLUDE_PATTERNS = frozenset({
-    '.*',       # dotfiles — Phase 10 的 .skill-spec.yaml 如需打包，须在此处豁免
+    '.*',
     '*.pyc',
     '*.pyo',
-    '*.skill',  # 排除本工具产物，防止打入历史包
+    '*.skill',
+})
+
+DOTFILE_WHITELIST = frozenset({
+    '.skill-spec.yaml',
 })
 
 MAX_PACKAGE_SIZE = 10 * 1024 * 1024  # 10MB
@@ -110,7 +114,8 @@ def collect_files(skill_dir: Path, ignore_patterns: list[str]) -> list[Path]:
             continue
 
         if any(fnmatch(f.name, pat) for pat in ALWAYS_EXCLUDE_PATTERNS):
-            continue
+            if f.name not in DOTFILE_WHITELIST:
+                continue
 
         if any(part.startswith('.') for part in parts[:-1]):
             continue

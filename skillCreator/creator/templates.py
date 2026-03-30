@@ -293,8 +293,10 @@ def _expand_variables(variables: dict) -> dict:
     expanded['name_title'] = variables.get('name', '').replace('-', ' ').title()
     if isinstance(expanded.get('tags'), list):
         tag_list = expanded['tags']
+        expanded['tags_list'] = list(tag_list)
         expanded['tags'] = f"[{', '.join(tag_list)}]" if tag_list else '[]'
     expanded.setdefault('has_config', False)
+    expanded.setdefault('date', '')
     return expanded
 
 
@@ -353,7 +355,8 @@ def _generate_jinja2(skill_dir: Path, tpl_dir: Path, expanded: dict):
 
 def generate_files(skill_dir: Path, variables: dict,
                    skill_type: str = 'python',
-                   template_dir: str | None = None):
+                   template_dir: str | None = None,
+                   guided: bool = False):
     """根据模板生成 skill 文件。
 
     向后兼容：skill_type='python' + template_dir=None 时，
@@ -364,6 +367,7 @@ def generate_files(skill_dir: Path, variables: dict,
         variables: 模板变量字典
         skill_type: Skill 类型（python / shell）
         template_dir: 用户自定义模板目录路径
+        guided: 是否使用规约驱动富模板（True 时优先查找 {type}-guided/ 目录）
     """
     if skill_type not in SUPPORTED_TYPES:
         raise ValueError(
@@ -371,7 +375,15 @@ def generate_files(skill_dir: Path, variables: dict,
         )
 
     expanded = _expand_variables(variables)
-    tpl_dir = _discover_template_dir(skill_type, template_dir)
+
+    if guided and template_dir is None:
+        guided_dir = BUILTIN_TEMPLATE_DIR / f"{skill_type}-guided"
+        if guided_dir.is_dir() and any(guided_dir.glob('*.j2')):
+            tpl_dir = guided_dir
+        else:
+            tpl_dir = _discover_template_dir(skill_type, template_dir)
+    else:
+        tpl_dir = _discover_template_dir(skill_type, template_dir)
 
     if tpl_dir is None:
         _generate_legacy(skill_dir, expanded)

@@ -1,0 +1,137 @@
+---
+name: {{ name }}
+description: {{ description }}
+version: {{ version }}
+author: {{ author }}
+tags: {{ tags }}
+---
+
+# {{ name_title }} - {{ description }}
+
+## 📋 Skill 概述
+
+**技能名称**：`{{ name }}`
+**用途**：{{ description }}
+{% if purpose and purpose.problem %}
+**解决的问题**：{{ purpose.problem }}
+{% endif %}
+{% if purpose and purpose.target_user %}
+**目标用户**：{{ purpose.target_user }}
+{% endif %}
+
+**适用场景**：
+{% if purpose and purpose.scenarios %}
+{% for scenario in purpose.scenarios %}
+{% if scenario %}- {{ scenario }}
+{% endif %}
+{% endfor %}
+{% else %}
+- 需要自动化处理特定任务时
+- 作为工作流中的一个环节被调用时
+{% endif %}
+
+## 🎯 核心能力
+
+{% if capabilities %}
+{% for cap in capabilities %}
+{% if cap.name %}
+### {{ loop.index }}. {{ cap.name }}
+
+{{ cap.description }}
+
+- **输入**：{{ cap.inputs }}
+- **输出**：{{ cap.outputs }}
+{% if cap.example %}- **示例**：{{ cap.example }}
+{% endif %}
+
+{% endif %}
+{% endfor %}
+{% else %}
+### 1. 主要功能
+- 接收输入参数并执行核心逻辑
+- 返回结构化的执行结果（Result 数据类）
+{% endif %}
+{%- if dependencies %}
+
+## 📦 前置依赖
+
+{% if dependencies.runtime %}
+**运行时依赖**：
+{% for dep in dependencies.runtime %}
+- `{{ dep }}`
+{% endfor %}
+{% endif %}
+{% if dependencies.external %}
+**外部依赖**：
+{% for dep in dependencies.external %}
+- {{ dep }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+## 📁 Skill 结构
+
+```
+{{ name }}/
+├── .skill-spec.yaml  # 设计规约
+├── SKILL.md          # 技能说明（本文件）
+├── run.py            # 主入口（含 Result 数据类和命令分发）
+├── USAGE.md          # 使用指南
+└── README.md         # 快速入门
+```
+
+## 🔧 使用方式
+
+```bash
+# 查看帮助
+python run.py --help
+{% if commands %}
+
+{% for cmd in commands %}
+{% if cmd.name %}
+# {{ cmd.description }}
+{{ cmd.example if cmd.example else 'python run.py ' + cmd.name }}
+{% endif %}
+{% endfor %}
+{% else %}
+# 执行示例命令
+python run.py example --name test
+{% endif %}
+```
+
+{% if commands %}
+## 📊 输出示例
+
+{% for cmd in commands %}
+{% if cmd.name and cmd.expected_output %}
+**{{ cmd.name }}**：
+```
+{{ cmd.expected_output }}
+```
+
+{% endif %}
+{% endfor %}
+{% endif %}
+
+## 🐛 故障排除
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+{% if error_handling %}
+{% for err in error_handling %}
+{% if err.scenario %}
+| {{ err.scenario }} | {{ err.cause }} | {{ err.solution }} |
+{% endif %}
+{% endfor %}
+{% else %}
+| `❌ 执行失败：...` | 输入参数不合法 | 使用 `--verbose` 查看详细信息 |
+{% endif %}
+
+## 🔗 相关资源
+
+- OpenClaw 文档：https://docs.openclaw.ai
+
+---
+
+*版本：{{ version }}*
+*更新：{{ date }}*

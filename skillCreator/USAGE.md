@@ -97,6 +97,13 @@ python run.py create \
 | `--interactive` | `-i` | 交互式模式 | 否 |
 | `--type` | | Skill 类型：`python`（默认）或 `shell` | 否 |
 | `--template-dir` | | 自定义模板目录路径（覆盖内置模板） | 否 |
+| `--guided` | | 引导式创建：生成规约骨架，提示填充后再用 `--spec` 渲染 | 否 |
+| `--spec` | | 从已有规约文件创建（`.skill-spec.yaml` 路径），自动使用富内容模板 | 否 |
+| `--strict` | | 严格模式：规约验证有任何问题时阻断创建 | 否 |
+
+**互斥规则**：`--guided` 与 `--spec` 互斥。`--spec` 模式下 `--interactive` 无效。
+
+**富模板路由**：`--spec` 路径自动使用 `python-guided/` 或 `shell-guided/` 模板（若存在），生成内容丰富的产物（规约 commands 映射为 argparse 子命令、Result 数据类、TODO 步骤注释、dependencies 前置依赖等）。若 guided 模板目录不存在则降级到标准模板。
 
 **示例**：
 ```bash
@@ -111,7 +118,46 @@ python run.py create -n deploy-script -d "自动部署脚本" --type shell
 
 # 使用自定义模板目录
 python run.py create -n custom-skill -d "自定义模板" --template-dir ./my-templates
+
+# 引导式创建（先生成规约骨架）
+python run.py create --guided -n api-monitor -d "API 健康监控"
+
+# 从已有规约文件创建
+python run.py create --spec path/to/.skill-spec.yaml -o ./output
+
+# 严格模式（规约验证必须全部通过才创建）
+python run.py create --spec path/to/.skill-spec.yaml --strict
 ```
+
+### `spec` - 规约骨架生成与验证
+
+```bash
+# 生成规约骨架
+python run.py spec -n my-skill -d "描述" -o ./output-dir
+
+# 验证规约文件
+python run.py spec --validate path/to/.skill-spec.yaml
+```
+
+| 参数 | 短 | 说明 | 必填 |
+|------|---|------|------|
+| `--name` | `-n` | Skill 名称（生成模式下必填） | 生成模式 |
+| `--description` | `-d` | 描述（生成模式下必填） | 生成模式 |
+| `--version` | `-v` | 版本号（默认 1.0.0） | 否 |
+| `--author` | `-a` | 作者 | 否 |
+| `--tags` | `-t` | 标签，逗号分隔 | 否 |
+| `--output` | `-o` | 规约输出目录（默认当前目录） | 否 |
+| `--validate` | | 验证模式：指向 `.skill-spec.yaml` 路径 | 验证模式 |
+
+**验证检查项**：
+- error 级别：字段非空、非占位符复制
+- warning 级别：长度合规、purpose.problem 与 meta.description 不完全相同
+
+**规约文件格式**（`.skill-spec.yaml`）：
+
+包含以下段：`meta`（基础信息）、`purpose`（问题/目标用户/场景）、`capabilities`（核心能力）、`commands`（子命令定义）、`error_handling`（错误处理）、`dependencies`（依赖）。每个字段附有 `[指令]`、`[好的示例]`、`[差的示例]` 注释引导。
+
+---
 
 ### `validate` - 验证现有 skill
 
@@ -508,5 +554,5 @@ python run.py batch --file skills.yaml
 
 ---
 
-*Skill Creator 版本：v7.0.0*  
-*最后更新：2026-03-27*
+*Skill Creator 版本：v9.0.0*  
+*最后更新：2026-03-30*

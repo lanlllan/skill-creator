@@ -1,0 +1,107 @@
+# {{ name }} - 使用指南
+{%- if dependencies and (dependencies.runtime or dependencies.external) %}
+
+## 📦 环境要求
+
+{% if dependencies.runtime %}
+安装依赖：
+{% for dep in dependencies.runtime %}
+- `{{ dep }}`
+{% endfor %}
+{% endif %}
+{% if dependencies.external %}
+外部依赖：
+{% for dep in dependencies.external %}
+- {{ dep }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+## 🚀 快速开始
+
+```bash
+cd {{ name }}
+bash run.sh --help
+{% if commands %}
+{% for cmd in commands %}
+{% if cmd.name and cmd.example %}
+{{ cmd.example }}
+{% endif %}
+{% endfor %}
+{% endif %}
+```
+
+## 📋 命令参考
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+{% for cmd in commands %}
+{% if cmd.name %}
+| `{{ cmd.name }}` | {{ cmd.description }} | `{{ cmd.example if cmd.example else 'bash run.sh ' + cmd.name }}` |
+{% endif %}
+{% endfor %}
+
+### 全局选项
+
+| 选项 | 说明 |
+|------|------|
+| `--verbose` / `-v` | 详细输出，显示调试信息 |
+
+{% for cmd in commands %}
+{% if cmd.name %}
+### {{ cmd.name }}
+
+{{ cmd.description }}
+
+**参数**：
+{% for arg in cmd.args %}
+{% if arg.name %}
+- `{{ arg.arg_flag }}`（{{ "必需" if arg.required else "可选" }}）：{{ arg.description }}
+{% endif %}
+{% endfor %}
+
+{% if cmd.example %}
+**示例**：
+
+```bash
+{{ cmd.example }}
+```
+{% endif %}
+
+{% if cmd.expected_output %}
+**预期输出**：
+
+```
+{{ cmd.expected_output }}
+```
+{% endif %}
+
+{% endif %}
+{% endfor %}
+
+## 📊 输出说明
+
+命令执行后返回结果：
+- 成功：`✅ <消息>` + 退出码 0
+- 失败：`❌ <错误详情>` + 退出码 1
+
+使用 `--verbose` 可查看调试信息。
+
+## 🐛 常见问题
+
+{% if error_handling %}
+{% for err in error_handling %}
+{% if err.scenario %}
+**Q: {{ err.scenario }}**
+A: 原因 — {{ err.cause }}。解决方案 — {{ err.solution }}。
+
+{% endif %}
+{% endfor %}
+{% else %}
+**Q: 执行报错怎么办？**
+A: 添加 `--verbose` 参数查看完整调试输出，确认输入参数是否合法。
+{% endif %}
+
+---
+
+*最后更新：{{ date }}*

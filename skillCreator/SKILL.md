@@ -1,7 +1,7 @@
 ---
 name: skill-creator
 description: 创建符合 OpenClaw 规范的新 Skill，自动化生成目录结构、模板文件和文档
-version: 7.0.0
+version: 9.0.0
 author: Zhiheng Yang
 tags: [tooling, scaffolding, development]
 ---
@@ -44,16 +44,27 @@ tags: [tooling, scaffolding, development]
 - 模板发现优先级：`--template-dir` 用户目录 > 内置 `templates/<type>/` > `DEFAULT_TEMPLATES` 回退
 - `--type` 参数选择 Skill 类型，`--template-dir` 参数覆盖内置模板
 - 完全向后兼容：不指定参数时产物与旧版一致
+- **富内容模板**（Phase 11）：`create --spec` 路径自动使用 `python-guided/` 或 `shell-guided/` 模板，规约字段驱动生成内容丰富的产物
+- 规约驱动：命令自动映射为 argparse 子命令、Result 数据类内联、TODO 步骤注释、dependencies 消费
 
 ### 4. 打包与分发
 - `package` 命令：将 skill 打包为 `.skill` 格式 zip 包
 - 打包前自动执行 validate + scan 前置检查（error 阻断，`--force` 覆盖）
 - `.skillignore` 文件支持（fnmatch 基础语法）排除不需要打包的文件
-- 自动排除 dotfiles、`__pycache__`、`.git`、`*.pyc`、`*.skill` 等
+- 自动排除 dotfiles、`__pycache__`、`.git`、`*.pyc`、`*.skill` 等（`.skill-spec.yaml` 白名单豁免）
 - SHA256 校验和输出，包大小超 10MB 发出 warning
 - zip 内保持 `skill-name/` 顶层目录结构，路径统一 POSIX 格式
 
-### 5. 工作流管理
+### 5. 规约系统（Skill Specification）
+- `spec` 命令：生成 `.skill-spec.yaml` 规约骨架，含结构化注释和填写引导
+- `spec --validate`：验证规约完整性（非空、非占位符复制、长度合规、非 description 复制）
+- `create --guided`：引导式创建（生成规约骨架 → 提示填充 → 用 `--spec` 渲染）
+- `create --spec`：从已有规约文件创建 Skill（加载 → 验证 → 模板渲染 → 复制规约到产出）
+- `--strict` 模式：规约验证有任何 error 或 warning 时阻断创建
+- 规约 schema 冻结：旧代码兼容新版 spec（忽略未知字段），新代码兼容旧版 spec（使用默认值）
+- batch 集成：YAML 条目支持 `spec` 字段指定规约文件路径
+
+### 6. 工作流管理
 - 创建 → 确认 → 归档 流程
 - 结构化状态管理：`.state.json` 原子写入，README.md 自动生成（只读视图）
 - 支持 `archive/clean --source` 处理自定义源目录
@@ -74,13 +85,16 @@ skill-creator/
 │   ├── scorer.py               # 质量评分器（python/shell 双入口）
 │   ├── security.py             # 安全扫描引擎
     │   ├── packager.py             # 打包引擎（.skillignore / zip / SHA256）
+│   ├── spec.py                 # 规约引擎（SkillSpec / 骨架生成 / 加载 / 验证）
     │   ├── state_manager.py        # .state.json 结构化状态管理
     │   ├── readme_manager.py       # 兼容层（转发到 state_manager）
-    │   └── commands/               # 子命令：create / validate / archive / clean / batch / scan / package
+    │   └── commands/               # 子命令：create / validate / archive / clean / batch / scan / package / spec
 ├── templates/                  # Jinja2 模板目录
 │   ├── python/                 # Python 类型模板（*.j2）
-│   └── shell/                  # Shell 类型模板（*.j2）
-├── tests/                      # pytest 测试套件（251 用例）
+│   ├── python-guided/          # Python 规约驱动富模板（*.j2）
+│   ├── shell/                  # Shell 类型模板（*.j2）
+│   └── shell-guided/           # Shell 规约驱动富模板（*.j2）
+├── tests/                      # pytest 测试套件（323 用例）
 ├── SKILL.md                    # 技能说明
 └── USAGE.md                    # 使用指南
 ```
@@ -380,6 +394,6 @@ python skill-creator/run.py batch --file skills.yaml
 
 ---
 
-*Skill 版本：v7.0.0*  
-*最后更新：2026-03-27*  
+*Skill 版本：v9.0.0*  
+*最后更新：2026-03-30*  
 *状态：生效中*

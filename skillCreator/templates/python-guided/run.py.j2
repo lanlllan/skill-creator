@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""{{ description }}"""
+
+import argparse
+import sys
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class Result:
+    """标准化命令执行结果。"""
+    success: bool = True
+    message: str = ""
+    data: dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+
+    def add_error(self, msg: str):
+        self.errors.append(msg)
+        self.success = False
+
+    def __bool__(self) -> bool:
+        return self.success
+
+    def summary(self) -> str:
+        if self.success:
+            return f"✅ {self.message}" if self.message else "✅ 执行成功"
+        err_text = "; ".join(self.errors)
+        return f"❌ 执行失败：{err_text}"
+
+{% for cmd in commands %}
+{% if cmd.name %}
+
+def cmd_{{ cmd.name_snake }}(args) -> Result:
+    """{{ cmd.description }}
+
+    预期输出: {{ cmd.expected_output }}
+    """
+    # TODO 实现步骤：
+{% for arg in cmd.args %}
+{% if arg.name %}
+    #   {{ loop.index }}. 从 args 获取参数 {{ arg.name }}（{{ arg.description }}）
+{% endif %}
+{% endfor %}
+    #   {{ cmd.args | length + 1 }}. 对输入做基本校验（为空、格式错误等情况返回 Result(success=False, ...)）
+    #   {{ cmd.args | length + 2 }}. 执行核心处理逻辑
+    #   {{ cmd.args | length + 3 }}. 返回 Result(success=True, message="描述执行结果", data=处理结果)
+    #
+    # 示例返回:
+    #   成功: Result(success=True, message="{{ cmd.expected_output }}")
+    #   失败: Result(success=False, message="{{ cmd.name }} 失败", errors=["具体原因"])
+    return Result(success=True, message="{{ cmd.name }} 执行完成")
+
+{% endif %}
+{% endfor %}
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='{{ description | replace("'", "\\'") }}',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument('--verbose', '-v', action='store_true', help='详细输出')
+    subparsers = parser.add_subparsers(dest='command', help='可用命令')
+
+{% for cmd in commands %}
+{% if cmd.name %}
+    parser_{{ cmd.name_snake }} = subparsers.add_parser(
+        '{{ cmd.name }}', help='{{ cmd.description | replace("'", "\\'") }}'
+    )
+{% for arg in cmd.args %}
+{% if arg.name %}
+{% if arg.argparse_action %}
+    parser_{{ cmd.name_snake }}.add_argument('{{ arg.arg_flag }}', action='{{ arg.argparse_action }}', help='{{ arg.description | replace("'", "\\'") }}')
+{% else %}
+    parser_{{ cmd.name_snake }}.add_argument('{{ arg.arg_flag }}', type={{ arg.type_python }}{% if arg.required %}, required=True{% endif %}, help='{{ arg.description | replace("'", "\\'") }}')
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% endif %}
+{% endfor %}
+    args = parser.parse_args()
+
+    if args.verbose:
+        print(f"🔍 调试模式：{args}")
+
+    dispatch = {
+{% for cmd in commands %}
+{% if cmd.name %}
+        '{{ cmd.name }}': cmd_{{ cmd.name_snake }},
+{% endif %}
+{% endfor %}
+    }
+
+    handler = dispatch.get(args.command)
+    if not handler:
+        parser.print_help()
+        return 0
+
+    try:
+        result = handler(args)
+    except Exception as e:
+        print(f"❌ 未预期异常：{e}")
+        return 1
+
+    print(result.summary())
+    if args.verbose and result.data:
+        for k, v in result.data.items():
+            print(f"  {k}: {v}")
+
+    return 0 if result.success else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
