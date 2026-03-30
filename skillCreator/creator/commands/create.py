@@ -2,6 +2,7 @@
 create 命令 — 创建新 skill
 """
 import os
+import re
 import yaml
 from datetime import datetime
 from pathlib import Path
@@ -59,15 +60,116 @@ def validate_skill(skill_dir: Path):
             except Exception as e:
                 errors.append(f"❌ front matter 解析失败：{e}")
 
-    if not run_py.exists():
-        errors.append("❌ run.py 不存在")
-    elif not os.access(run_py, os.X_OK):
-        warnings.append("⚠️  run.py 缺少可执行权限（建议 chmod +x）")
+    run_sh = skill_dir / "run.sh"
+    if not run_py.exists() and not run_sh.exists():
+        errors.append("❌ 入口脚本不存在（需要 run.py 或 run.sh）")
+    else:
+        entry = run_py if run_py.exists() else run_sh
+        if not os.access(entry, os.X_OK):
+            warnings.append(f"⚠️  {entry.name} 缺少可执行权限（建议 chmod +x）")
+        _validate_entry_script(entry, warnings)
+
+    _validate_doc_completeness(skill_dir, skill_md, warnings)
+    _validate_placeholder_residue(skill_dir, errors)
+    _validate_markdown_links(skill_dir, warnings)
 
     return errors, warnings
 
 
-def create_skill(params: dict, _out: dict = None) -> int:
+def _validate_entry_script(entry: Path, warnings: list):
+    """Phase 7：入口脚本质量检查（shebang / docstring / 异常处理 / 退出码）。"""
+    try:
+        content = entry.read_text(encoding='utf-8')
+    except Exception:
+        return
+
+    is_python = entry.name.endswith('.py')
+
+    if not content.startswith('#!'):
+        shebang_hint = '#!/usr/bin/env python3' if is_python else '#!/usr/bin/env bash'
+        warnings.append(f"⚠️  {entry.name} 缺少 shebang（建议 {shebang_hint}）")
+
+    if is_python:
+        first_500 = content[:500]
+        if '"""' not in first_500 and "'''" not in first_500:
+            warnings.append(f"⚠️  {entry.name} 缺少模块级 docstring")
+    else:
+        lines = content.splitlines()
+        has_desc = any(
+            l.strip().startswith('#') and len(l.strip()) > 3
+            for l in lines[:10] if not l.startswith('#!')
+        )
+        if not has_desc:
+            warnings.append(f"⚠️  {entry.name} 缺少文件头注释说明")
+
+    if is_python:
+        if 'try:' not in content and 'except' not in content:
+            warnings.append(f"⚠️  {entry.name} 未发现 try/except 异常处理结构")
+    else:
+        if 'set -e' not in content and 'trap ' not in content:
+            warnings.append(f"⚠️  {entry.name} 未发现错误处理（建议 set -e 或 trap）")
+
+    if is_python:
+        if 'sys.exit(' not in content and 'return 0' not in content and 'return 1' not in content:
+            warnings.append(f"⚠️  {entry.name} main() 未明确返回退出码")
+    else:
+        if 'exit 0' not in content and 'exit 1' not in content and 'exit $' not in content:
+            warnings.append(f"⚠️  {entry.name} 未发现 exit 语句（建议明确退出码）")
+
+
+def _validate_doc_completeness(skill_dir: Path, skill_md: Path, warnings: list):
+    """Phase 7：文档完整度检查。"""
+    if not (skill_dir / "USAGE.md").exists():
+        warnings.append("⚠️  USAGE.md 不存在（建议提供使用指南）")
+
+    if skill_md.exists():
+        content = skill_md.read_text(encoding='utf-8')
+        expected = ['概述', '核心能力', '使用方式', '示例']
+        missing = [s for s in expected if s not in content]
+        if missing:
+            warnings.append(f"⚠️  SKILL.md 缺少推荐章节：{', '.join(missing)}")
+
+
+def _validate_placeholder_residue(skill_dir: Path, errors: list):
+    """Phase 7：占位符残留检测（error 级别），递归扫描子目录。"""
+    check_suffixes = {'.md', '.py', '.sh', '.yaml', '.yml', '.txt'}
+    pattern = re.compile(r'\{\{[^}]+\}\}')
+    for f in skill_dir.rglob('*'):
+        if f.is_file() and f.suffix in check_suffixes and not f.name.endswith('.j2'):
+            try:
+                content = f.read_text(encoding='utf-8')
+            except Exception:
+                continue
+            found = set(pattern.findall(content))
+            if found:
+                rel = f.relative_to(skill_dir)
+                errors.append(
+                    f"❌ {rel} 存在未替换的占位符：{', '.join(sorted(found))}"
+                )
+
+
+def _validate_markdown_links(skill_dir: Path, warnings: list):
+    """Phase 7：Markdown 本地链接有效性检查，递归扫描子目录。"""
+    link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+    for md_file in skill_dir.rglob('*.md'):
+        try:
+            content = md_file.read_text(encoding='utf-8')
+        except Exception:
+            continue
+        rel_md = md_file.relative_to(skill_dir)
+        for label, href in link_pattern.findall(content):
+            if href.startswith(('http://', 'https://', '#', 'mailto:')):
+                continue
+            target = (md_file.parent / href).resolve()
+            if not target.exists():
+                warnings.append(
+                    f"⚠️  {rel_md} 中链接 [{label}]({href}) 指向不存在的文件"
+                )
+
+
+def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
+                 skill_type: str = 'python',
+                 template_dir: str | None = None) -> int:
     """纯函数：从 params dict 创建 skill，返回退出码（0=成功，非0=失败）。
 
     params 字段契约（唯一来源，禁止双口径）：
@@ -79,6 +181,8 @@ def create_skill(params: dict, _out: dict = None) -> int:
       output      str|None       可选，None 时使用 get_skills_temp_dir()
 
     可选参数 _out：dict，供调用方获取额外输出（score、skill_name、failure_reason）。
+    skill_type：Skill 类型（python / shell），控制使用的模板集。
+    template_dir：自定义模板目录路径，覆盖内置模板。
     """
     missing = {'name', 'description'} - params.keys()
     if missing:
@@ -139,7 +243,8 @@ def create_skill(params: dict, _out: dict = None) -> int:
         }
 
         print("📝 生成文件...")
-        generate_files(skill_dir, variables)
+        generate_files(skill_dir, variables,
+                       skill_type=skill_type, template_dir=template_dir)
 
         errors, warnings = validate_skill(skill_dir)
         if errors:
@@ -157,10 +262,11 @@ def create_skill(params: dict, _out: dict = None) -> int:
         scores = scorer.score()
         print(scorer.generate_report())
 
-        try:
-            add_skill(skill_name, score=scores['total'])
-        except Exception as e:
-            print(f"⚠️  更新状态失败: {e}")
+        if not skip_state:
+            try:
+                add_skill(skill_name, score=scores['total'])
+            except Exception as e:
+                print(f"⚠️  更新状态失败: {e}")
 
         total = scores['total']
         if total >= 80:
@@ -226,8 +332,12 @@ def main_create(args):
         'output': output,
     }
 
+    skill_type = getattr(args, 'type', 'python')
+    template_dir = getattr(args, 'template_dir', None)
+
     try:
-        return create_skill(params)
+        return create_skill(params, skill_type=skill_type,
+                            template_dir=template_dir)
     except ValueError as e:
         print(f"❌ {e}")
         return 1

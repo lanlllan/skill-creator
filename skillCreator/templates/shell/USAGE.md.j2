@@ -1,0 +1,50 @@
+# {{ name }} - 使用指南
+
+## 🚀 快速开始
+
+```bash
+cd {{ name }}
+chmod +x run.sh
+bash run.sh help
+bash run.sh example --name test
+```
+
+## 📋 命令参考
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `example` | 示例命令，输出问候语 | `bash run.sh example --name test` |
+| `version` | 显示版本号 | `bash run.sh version` |
+| `help` | 显示帮助信息 | `bash run.sh help` |
+
+## 🛠️ 配置
+
+{% if has_config %}环境变量配置文件 `config.env`：
+
+```bash
+# config.env
+OPTION1=value1
+OPTION2=value2
+```
+
+加载方式：`source config.env && bash run.sh example`
+{% else %}暂无外部配置项。所有参数通过命令行传入。
+{% endif %}
+
+## 📊 输出说明
+
+- 成功操作输出 `✅ <消息>`
+- 警告信息输出 `⚠️  <消息>`
+- 错误信息输出 `❌ <消息>`（到 stderr）
+
+## 🐛 常见问题
+
+**Q: 权限不足？**  
+A: 执行 `chmod +x run.sh`。
+
+**Q: 参数不被识别？**  
+A: 运行 `bash run.sh help` 查看完整用法和参数列表。
+
+---
+
+*最后更新：{{ date }}*

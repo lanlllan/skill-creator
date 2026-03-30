@@ -1,0 +1,77 @@
+---
+name: {{ name }}
+description: {{ description }}
+version: {{ version }}
+author: {{ author }}
+tags: {{ tags }}
+type: shell
+---
+
+# {{ name_title }} - {{ description }}
+
+## 📋 Skill 概述
+
+**技能名称**：`{{ name }}`  
+**类型**：Shell 脚本  
+**用途**：{{ description }}  
+**适用场景**：
+- 需要在命令行环境中执行自动化任务时
+- 作为 CI/CD 流水线中的一个步骤时
+
+## 🎯 核心能力
+
+### 1. 命令分发
+- 支持多个子命令（通过 `case` 分支）
+- 内置 `help`、`version` 命令
+
+### 2. 错误处理
+- `set -euo pipefail` 严格模式
+- 分级日志函数（info / ok / warn / error）
+
+## 📁 Skill 结构
+
+```
+{{ name }}/
+├── SKILL.md          # 技能说明（本文件）
+├── run.sh            # Shell 脚本入口
+{% if has_config %}├── config.env        # 环境变量配置
+{% endif %}├── USAGE.md          # 使用指南
+└── README.md         # 快速入门
+```
+
+## 🔧 使用方式
+
+```bash
+# 查看帮助
+bash run.sh help
+
+# 执行示例命令
+bash run.sh example --name test
+
+# 查看版本
+bash run.sh version
+```
+
+## 📝 示例
+
+```bash
+bash run.sh example --name "hello"
+# 输出：✅ Hello, hello!
+```
+
+## 🐛 故障排除
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| 权限不足 | 缺少执行权限 | `chmod +x run.sh` |
+| `未知参数: --foo` | 参数拼写错误 | 运行 `bash run.sh help` 查看可用参数 |
+| `未知命令: bar` | 子命令不存在 | 运行 `bash run.sh help` 查看可用命令 |
+
+## 🔗 相关资源
+
+- OpenClaw 文档：https://docs.openclaw.ai
+
+---
+
+*版本：{{ version }}*  
+*更新：{{ date }}*

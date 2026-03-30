@@ -19,6 +19,8 @@ from creator.commands.validate import main_validate
 from creator.commands.archive import main_archive
 from creator.commands.clean import main_clean
 from creator.commands.batch import main_batch
+from creator.commands.scan import main_scan
+from creator.commands.package import main_package
 
 
 def main():
@@ -62,9 +64,14 @@ def main():
     create_parser.add_argument('--tags', '-t', help='标签，逗号分隔（如 tool,utility）')
     create_parser.add_argument('--output', '-o', help='输出目录（默认由程序自动解析 skills-temp 路径）')
     create_parser.add_argument('--interactive', '-i', action='store_true', help='交互式模式')
+    create_parser.add_argument('--type', choices=['python', 'shell'],
+                               default='python', help='Skill 类型（默认 python）')
+    create_parser.add_argument('--template-dir', help='自定义模板目录路径（覆盖内置模板）')
 
     validate_parser = subparsers.add_parser('validate', help='验证 skill')
     validate_parser.add_argument('path', help='skill 目录路径')
+    validate_parser.add_argument('--no-security', action='store_true',
+                                 help='跳过安全扫描')
 
     archive_parser = subparsers.add_parser('archive', help='归档 skill')
     archive_parser.add_argument('name', help='技能名称')
@@ -79,6 +86,18 @@ def main():
 
     batch_parser = subparsers.add_parser('batch', help='批量创建（从 YAML 列表）')
     batch_parser.add_argument('--file', '-f', required=True, help='技能列表文件（YAML 格式）')
+    batch_parser.add_argument('--fail-on-security', action='store_true',
+                              help='安全扫描有 error 级别发现时计为失败')
+
+    scan_parser = subparsers.add_parser('scan', help='安全扫描 skill 目录')
+    scan_parser.add_argument('path', help='skill 目录路径')
+    scan_parser.add_argument('--json', action='store_true', help='JSON 格式输出')
+
+    package_parser = subparsers.add_parser('package', help='打包 skill 为 .skill 文件')
+    package_parser.add_argument('path', help='skill 目录路径')
+    package_parser.add_argument('--output', '-o', help='包输出目录（默认 skill 同级目录）')
+    package_parser.add_argument('--force', action='store_true',
+                                help='即使 validate/scan 有 error 也强制打包')
 
     args = parser.parse_args()
 
@@ -92,6 +111,8 @@ def main():
         'archive': main_archive,
         'clean': main_clean,
         'batch': main_batch,
+        'scan': main_scan,
+        'package': main_package,
     }
     return dispatch[args.command](args)
 

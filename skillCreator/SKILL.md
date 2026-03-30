@@ -1,7 +1,7 @@
 ---
 name: skill-creator
 description: 创建符合 OpenClaw 规范的新 Skill，自动化生成目录结构、模板文件和文档
-version: 3.0.0
+version: 7.0.0
 author: Zhiheng Yang
 tags: [tooling, scaffolding, development]
 ---
@@ -29,22 +29,31 @@ tags: [tooling, scaffolding, development]
 ### 1. 项目脚手架
 - 生成标准 Skill 目录结构
 - 创建必需的 `SKILL.md`（含 front matter）
-- 生成 `run.py` 主入口模板
+- 生成入口脚本模板（Python: `run.py` / Shell: `run.sh`）
 - 生成配置文件、模板等可选文件
 
 ### 2. 规范检查
 - 验证 SKILL.md front matter 完整性
 - 检查必需字段（name, description, version）
-- 验证 run.py 基本结构
+- 验证入口脚本基本结构（`run.py` 或 `run.sh`）
 - 检测常见配置错误
 
 ### 3. 模板系统
-- 模板定义在 `creator/templates.py` 的 `DEFAULT_TEMPLATES` 字典
-- 支持占位符替换（如 `{{name}}`、`{{description}}`、`{{name_title}}`）
-- 自动将 `tags` 规范化输出为 YAML 数组格式
-- 通过修改 `creator/templates.py` 可扩展模板内容
+- Jinja2 模板引擎，支持条件渲染（`if/for`）
+- 内置类型：`python`（默认）、`shell`
+- 模板发现优先级：`--template-dir` 用户目录 > 内置 `templates/<type>/` > `DEFAULT_TEMPLATES` 回退
+- `--type` 参数选择 Skill 类型，`--template-dir` 参数覆盖内置模板
+- 完全向后兼容：不指定参数时产物与旧版一致
 
-### 4. 工作流管理
+### 4. 打包与分发
+- `package` 命令：将 skill 打包为 `.skill` 格式 zip 包
+- 打包前自动执行 validate + scan 前置检查（error 阻断，`--force` 覆盖）
+- `.skillignore` 文件支持（fnmatch 基础语法）排除不需要打包的文件
+- 自动排除 dotfiles、`__pycache__`、`.git`、`*.pyc`、`*.skill` 等
+- SHA256 校验和输出，包大小超 10MB 发出 warning
+- zip 内保持 `skill-name/` 顶层目录结构，路径统一 POSIX 格式
+
+### 5. 工作流管理
 - 创建 → 确认 → 归档 流程
 - 结构化状态管理：`.state.json` 原子写入，README.md 自动生成（只读视图）
 - 支持 `archive/clean --source` 处理自定义源目录
@@ -59,11 +68,19 @@ tags: [tooling, scaffolding, development]
 skill-creator/
 ├── run.py                      # CLI 入口（纯 argparse + dispatch）
 ├── creator/                    # 业务逻辑模块包
-│   ├── paths.py / validators.py / templates.py / scorer.py
-│   ├── state_manager.py        # .state.json 结构化状态管理
-│   ├── readme_manager.py       # 兼容层（转发到 state_manager）
-│   └── commands/               # create / validate / archive / clean / batch
-├── tests/                      # pytest 测试套件（85 用例）
+│   ├── paths.py                # 路径解析
+│   ├── validators.py           # 名称/版本校验
+│   ├── templates.py            # 模板渲染（Jinja2 + 回退）
+│   ├── scorer.py               # 质量评分器（python/shell 双入口）
+│   ├── security.py             # 安全扫描引擎
+    │   ├── packager.py             # 打包引擎（.skillignore / zip / SHA256）
+    │   ├── state_manager.py        # .state.json 结构化状态管理
+    │   ├── readme_manager.py       # 兼容层（转发到 state_manager）
+    │   └── commands/               # 子命令：create / validate / archive / clean / batch / scan / package
+├── templates/                  # Jinja2 模板目录
+│   ├── python/                 # Python 类型模板（*.j2）
+│   └── shell/                  # Shell 类型模板（*.j2）
+├── tests/                      # pytest 测试套件（251 用例）
 ├── SKILL.md                    # 技能说明
 └── USAGE.md                    # 使用指南
 ```
@@ -121,17 +138,20 @@ python skill-creator/run.py create --interactive
 
 ### 1. 目录结构规范
 
+**Python 类型（默认）**：
 ```
 skill-name/
 ├── SKILL.md                    # 必需：技能说明（含 YAML front matter）
-├── run.py                      # 必需：技能主入口（可执行）
-├── templates/                  # 可选：模板文件
-│   └── *.tmpl
-├── utils/                      # 可选：工具函数
-│   └── *.py
-├── config/                     # 可选：配置文件
-│   └── config.yaml
-├── requirements.txt            # 可选：Python 依赖
+├── run.py                      # 必需：Python 主入口（可执行）
+├── USAGE.md                    # 推荐：使用指南
+└── README.md                   # 推荐：快速上手
+```
+
+**Shell 类型**（`--type shell`）：
+```
+skill-name/
+├── SKILL.md                    # 必需：技能说明（含 YAML front matter，type: shell）
+├── run.sh                      # 必需：Shell 脚本入口（可执行）
 ├── USAGE.md                    # 推荐：使用指南
 └── README.md                   # 推荐：快速上手
 ```
@@ -171,53 +191,53 @@ dependencies: []               # 可选，依赖的其他技能
 ...
 ```
 
-### 3. run.py 入口规范
+### 3. 入口脚本规范
 
+**Python 类型**（`run.py`）— 内置 Result 数据类 + 验证流程 + 错误处理：
 ```python
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Skill Name - 简短描述
-"""
+from dataclasses import dataclass, field
+from typing import Any
 
-import argparse
-import sys
-import os
+@dataclass
+class Result:
+    success: bool = True
+    message: str = ""
+    data: dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='Skill 描述',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-示例:
-  python run.py --help
-  python run.py <子命令> [参数...]
-        """
-    )
-    
-    # 定义参数
-    parser.add_argument('--config', '-c', help='配置文件路径')
-    parser.add_argument('--verbose', '-v', action='store_true', help='详细输出')
-    
-    args = parser.parse_args()
-    
-    # 实现逻辑
-    print("Skill 执行中...")
-    
-    return 0
+def cmd_example(args) -> Result:
+    result = validate_input(args)
+    if not result.success:
+        return result
+    # 业务逻辑...
+    return result
+```
 
-if __name__ == '__main__':
-    sys.exit(main())
+**Shell 类型**（`run.sh`）— 严格模式 + 日志函数 + 子命令分发：
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+log_info()  { echo "ℹ️  $*"; }
+log_error() { echo "❌ $*" >&2; }
+main() {
+    local cmd="$1"; shift
+    case "${cmd}" in
+        example) cmd_example "$@" ;;
+        *) log_error "未知命令: ${cmd}"; exit 1 ;;
+    esac
+}
+main "$@"
 ```
 
 ### 4. 推荐实践
 
 - ✅ **文档完整**：SKILL.md 包含使用示例和完整说明
-- ✅ **错误处理**：run.py 正确处理异常，返回非零退出码
+- ✅ **错误处理**：入口脚本正确处理异常，返回非零退出码
 - ✅ **参数校验**：验证输入参数，提供清晰错误信息
-- ✅ **日志输出**：使用 print 或 logging，便于调试
+- ✅ **日志输出**：使用 print / echo，便于调试
 - ✅ **返回值**：main() 返回整数退出码（0=成功，非0=失败）
-- ✅ **可执行权限**：`chmod +x run.py`
+- ✅ **可执行权限**：`chmod +x run.py` 或 `chmod +x run.sh`
 - ✅ **README**：提供快速上手指南
 
 ---
@@ -303,26 +323,34 @@ python skill-creator/run.py batch --file skills.yaml
 - [ ] front matter 包含 name、description、version
 - [ ] name 符合规范（小写、短横线）
 - [ ] version 符合语义化版本格式（x.y.z）
-- [ ] run.py 存在且包含 main() 函数
-- [ ] run.py 有 shebang 和执行权限
+- [ ] 入口脚本存在（Python: `run.py`，Shell: `run.sh`）
+- [ ] 入口脚本有 shebang 和执行权限
 - [ ] 可选文件合理性（templates/, utils/ 等）
 - [ ] 文档完整性（SKILL.md 有使用示例）
+- [ ] 入口脚本 shebang 检查（validate：warning）
+- [ ] 入口脚本模块文档字符串或头部注释（validate：warning）
+- [ ] 入口脚本异常处理（validate：warning）
+- [ ] 入口脚本退出码处理（validate：warning）
+- [ ] 文档完整性：USAGE.md 存在性及 SKILL.md 章节完整性（validate：warning）
+- [ ] 占位符残留检测 `{{...}}`（validate：error）
+- [ ] Markdown 本地链接有效性（validate：warning）
 
 ---
 
 ## 🛠️ 技术实现
 
 ### 模板引擎
-- 模板定义在 `creator/templates.py` 的 `DEFAULT_TEMPLATES` 字典
-- 使用内置字符串替换（`str.replace`）
-- 支持变量替换：`{{name}}`、`{{description}}`、`{{name_title}}` 等
+- Jinja2 渲染引擎（`templates/<type>/*.j2`），支持条件/循环语法
+- 保留 `DEFAULT_TEMPLATES` 硬编码作为兜底回退（向后兼容）
+- 模板发现：用户 `--template-dir` > 内置 `templates/<type>/` > `DEFAULT_TEMPLATES`
+- 支持变量：`{{ name }}`、`{{ description }}`、`{{ name_title }}`、`{{ has_config }}` 等
 - `tags` 在生成时输出为 YAML 数组（如 `[tag1, tag2]`）
 
 ### 验证器
 - 解析 YAML front matter（`yaml.safe_load`）
 - 检查必需字段：`name`、`description`、`version`
 - 正则检查 name 格式：`^[a-z][a-z0-9-]*$`
-- 文件存在性与 `run.py` 可执行权限检查
+- 文件存在性与入口脚本（`run.py` / `run.sh`）可执行权限检查
 
 ### 路径管理
 - `create` 写入 `--output`（默认由 `get_skills_temp_dir()` 解析，与 `archive/clean` 一致）
@@ -333,11 +361,12 @@ python skill-creator/run.py batch --file skills.yaml
 
 ## 📈 未来增强
 
-- [ ] 支持更多模板类型（Go skill、shell script skill）
+- [x] 支持更多模板类型（shell script skill — Phase 6 已实现）
+- [ ] 支持更多模板类型（Go skill、composite skill）
 - [ ] 集成 clawhub 发布流程
 - [ ] 生成 CI/CD 配置文件（GitHub Actions）
 - [ ] 自动生成技能文档网站
-- [ ] 支持插件系统（自定义模板）
+- [x] 支持插件系统（`--template-dir` 自定义模板 — Phase 6 已实现）
 - [ ] 集成测试框架（自动生成测试用例）
 
 ---
@@ -346,11 +375,11 @@ python skill-creator/run.py batch --file skills.yaml
 
 - **OpenClaw Skill 开发指南**：https://docs.openclaw.ai/skills
 - **YAML Front Matter 规范**：https://jekyllrb.com/docs/front-matter/
-- **Python 模板引擎**：https://docs.python.org/3/library/string.html#template-strings
+- **Jinja2 模板引擎**：https://jinja.palletsprojects.com/
 - **ClawHub CLI**：`npx clawhub` 搜索、安装、同步 skills
 
 ---
 
-*Skill 版本：v3.0.0*  
-*最后更新：2026-03-25*  
+*Skill 版本：v7.0.0*  
+*最后更新：2026-03-27*  
 *状态：生效中*

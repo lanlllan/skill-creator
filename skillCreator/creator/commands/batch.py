@@ -108,14 +108,40 @@ def main_batch(args):
         print(f"▶ 创建：{raw_name}")
         print('─' * 40)
 
+        fail_on_security = getattr(args, 'fail_on_security', False)
+
         result_info: dict = {}
         try:
-            rc = create_skill(params, _out=result_info)
+            rc = create_skill(params, _out=result_info,
+                              skip_state=fail_on_security)
             if rc == 0:
-                results['success'].append({
-                    'name': result_info.get('skill_name', normalized),
-                    'score': result_info.get('score'),
-                })
+                from creator.security import scan_directory
+                skill_dir = target_root / normalized
+                security_findings = scan_directory(skill_dir)
+                result_info['security_findings'] = security_findings
+
+                has_security_error = any(
+                    f.severity == 'error' for f in security_findings)
+
+                if has_security_error and fail_on_security:
+                    results['failure'].append({
+                        'name': result_info.get('skill_name', normalized),
+                        'reason': '安全扫描未通过（存在 error 级别发现）',
+                    })
+                else:
+                    if fail_on_security:
+                        from creator.state_manager import add_skill
+                        try:
+                            add_skill(result_info.get('skill_name', normalized),
+                                      score=result_info.get('score'))
+                        except Exception as e:
+                            print(f"⚠️  更新状态失败: {e}")
+
+                    results['success'].append({
+                        'name': result_info.get('skill_name', normalized),
+                        'score': result_info.get('score'),
+                        'security_findings': security_findings,
+                    })
             else:
                 reason = result_info.get('failure_reason') or f'创建失败（退出码 {rc}）'
                 results['failure'].append({'name': raw_name, 'reason': reason})
@@ -149,5 +175,22 @@ def main_batch(args):
         print("\n⏭️  跳过:")
         for s in results['skip']:
             print(f"  - {s['name']} (原因: {s['reason']})")
+
+    security_items = [
+        (s['name'], s.get('security_findings', []))
+        for s in results['success'] if s.get('security_findings')
+    ]
+    if security_items:
+        print("\n🔒 安全风险:")
+        for name, findings in security_items:
+            warn_count = sum(1 for f in findings if f.severity == 'warning')
+            error_count = sum(1 for f in findings if f.severity == 'error')
+            parts = []
+            if error_count:
+                parts.append(f"{error_count} 个 error")
+            if warn_count:
+                parts.append(f"{warn_count} 个 warning")
+            if parts:
+                print(f"  - {name}: {', '.join(parts)}")
 
     return 1 if n_failure > 0 else 0

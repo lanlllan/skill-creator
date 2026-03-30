@@ -66,6 +66,102 @@ python run.py batch --file ../tmp/test.yaml
 
 ## 更新记录
 
+### v7.0.0（Phase 8）— 2026-03-27
+
+**打包与分发（Packaging & Distribution）**
+
+核心变更：
+- 新增 `package` 命令：将 skill 打包为 `.skill` 格式 zip 包
+- 打包前自动执行 `validate` + `scan` 前置检查（error 阻断，`--force` 覆盖）
+- `.skillignore` 文件支持（fnmatch 基础语法：`*`、`?`、`[seq]`），排除不需要的文件
+- 自动排除 dotfiles、`__pycache__`、`.git`、`*.pyc`、`*.skill`（工具产物）等
+- SHA256 校验和输出，包大小超 10MB 发出 warning
+- zip 包内保持 `skill-name/` 顶层目录结构，路径统一 POSIX 格式
+
+| 模块 | 职责变更 |
+|------|---------|
+| `creator/packager.py` | 新增：打包核心引擎（.skillignore 解析、文件收集、zip 创建、SHA256 计算） |
+| `creator/commands/package.py` | 新增：package 子命令入口 |
+| `run.py` | 修改：注册 package 子命令 + CLI 参数（`--output`、`--force`） |
+
+测试：251 个用例全部通过（含 30 个新增打包测试）。无新增外部依赖。
+
+### v6.0.0（Phase 7）— 2026-03-27
+
+**验证能力增强（Validation Enhancement）**
+
+核心变更：
+- `validate` 新增 7 个检查维度：入口脚本 shebang；模块文档字符串/头部注释；异常处理；退出码；文档完整性（USAGE.md 存在 + SKILL.md 章节）；占位符 `{{...}}` 残留（error）；Markdown 本地链接有效性（前五项与链接为 warning）
+- 评分器（`scorer.py`）：标准维度对占位符残留扣 3 分；文档维度对 Markdown 本地链接有效加 1 分
+
+| 模块 | 职责变更 |
+|------|---------|
+| `creator/commands/validate.py` | 扩展：上述校验维度与严重度输出 |
+| `creator/scorer.py` | 占位符扣分、文档链接加分 |
+
+测试：221 个用例全部通过。
+
+### v5.0.0（Phase 6）— 2026-03-27
+
+**模板系统增强（Template Enhancement）**
+
+核心变更：
+- 引入 Jinja2 模板引擎，支持条件渲染（`if/for`）和模板继承
+- 新增 `templates/` 目录，内置 `python` 和 `shell` 两种 Skill 类型模板
+- 新增 `--type` 参数：选择 Skill 类型（`python` 默认 / `shell`）
+- 新增 `--template-dir` 参数：用户自定义模板目录覆盖内置模板
+- 模板发现优先级：用户目录 > 内置 `templates/<type>/` > `DEFAULT_TEMPLATES` 回退
+- 完全向后兼容：不指定新参数时产物与旧版逐字节一致
+
+Shell 类型模板特性：
+- 生成 `run.sh`（含 `set -euo pipefail`、日志函数、子命令框架）
+- SKILL.md 含 `type: shell` 标记
+- 支持 `has_config` 条件渲染（控制 config.env 相关内容）
+
+| 模块 | 职责变更 |
+|------|---------|
+| `creator/templates.py` | 重构：Jinja2 引擎 + 模板发现 + `_expand_variables` / `_discover_template_dir` / `_generate_jinja2` |
+| `templates/python/*.j2` | 新增：Python 类型 Jinja2 模板（4 个文件） |
+| `templates/shell/*.j2` | 新增：Shell 类型 Jinja2 模板（4 个文件） |
+| `creator/commands/create.py` | 修改：传递 `skill_type` / `template_dir`；validate_skill 支持 run.sh |
+| `run.py` | 修改：create 子命令新增 `--type` / `--template-dir` 参数 |
+
+新增依赖：`jinja2>=3.1`
+
+测试：186 个用例全部通过（含 40 个新增模板系统测试）。
+
+### v4.0.0（Phase 5）— 2026-03-26
+
+**安全扫描能力（Security Scanning）**
+
+核心变更：
+- 新增 `creator/security.py`：安全扫描核心引擎，6 类检测规则（模式表驱动）
+- 新增 `scan` 子命令：独立安全扫描，支持 `--json` 输出
+- `validate` 集成安全扫描：默认开启，发现以 warning 展示，不影响退出码（`--no-security` 跳过）
+- `batch` 集成安全扫描：每个 skill 创建后自动扫描，`--fail-on-security` 将 error 级发现升级为失败
+
+检测规则：
+
+| 类别 | 规则 | 严重度 |
+|------|------|--------|
+| 密钥泄露 | API key 前缀（sk-、AKIA、ghp_、glpat-） | error |
+| 密钥泄露 | 硬编码凭证赋值（api_key=、password= 等） | warning |
+| 敏感文件 | .env、credentials.json、*.pem、*.key | error |
+| 危险调用 | eval()、exec()、__import__() | warning |
+| 危险调用 | subprocess + shell=True | warning |
+| 危险调用 | os.system() | warning |
+
+| 模块 | 职责变更 |
+|------|---------|
+| `creator/security.py` | 新增：ScanFinding dataclass + scan_directory + format_report |
+| `creator/commands/scan.py` | 新增：scan 子命令入口 |
+| `creator/commands/validate.py` | 修改：集成安全扫描 + --no-security + 非目录输入校验 |
+| `creator/commands/batch.py` | 修改：安全扫描 + --fail-on-security + 汇总安全风险区域 |
+| `creator/commands/create.py` | 修改：新增 skip_state 参数 |
+| `run.py` | 修改：注册 scan 子命令 + 新增 CLI 参数 |
+
+测试：141 个用例全部通过（含 56 个新增安全扫描测试）。无新增外部依赖。
+
 ### v3.0.0（Phase 4）— 2026-03-25
 
 **状态管理升级：README 表格 → .state.json 结构化存储**

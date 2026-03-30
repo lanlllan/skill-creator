@@ -1,0 +1,42 @@
+# {{ name }} - 使用指南
+
+## 🚀 快速开始
+
+```bash
+cd {{ name }}
+python run.py --help
+python run.py example --name test
+```
+
+## 📋 命令参考
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `example` | 示例命令，输出问候语 | `python run.py example --name test` |
+
+### 全局选项
+
+| 选项 | 说明 |
+|------|------|
+| `--verbose` / `-v` | 详细输出，显示调试信息和返回数据 |
+| `--config` / `-c` | 指定配置文件路径 |
+
+## 📊 输出说明
+
+命令执行后返回结构化结果：
+- 成功：`✅ <消息>` + 退出码 0
+- 失败：`❌ 执行失败：<错误详情>` + 退出码 1
+
+使用 `--verbose` 可查看 `Result.data` 中的详细数据。
+
+## 🐛 常见问题
+
+**Q: 如何自定义配置文件？**  
+A: 使用 `--config` 参数指定路径：`python run.py --config config.yaml example`。
+
+**Q: 执行报错 "未预期异常" 怎么办？**  
+A: 添加 `--verbose` 参数查看完整调试输出，确认输入参数是否合法。
+
+---
+
+*最后更新：{{ date }}*

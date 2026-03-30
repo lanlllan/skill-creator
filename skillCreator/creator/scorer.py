@@ -1,5 +1,7 @@
 """
 Skill 质量评分器
+
+支持 python（run.py）和 shell（run.sh）两种入口类型。
 """
 import os
 import re
@@ -20,6 +22,17 @@ class SkillScorer:
             'total': 0,
         }
         self.remarks = []
+        self._entry_script, self._entry_type = self._detect_entry_script()
+
+    def _detect_entry_script(self) -> tuple[Path | None, str]:
+        """检测入口脚本及其类型。"""
+        run_py = self.skill_dir / "run.py"
+        run_sh = self.skill_dir / "run.sh"
+        if run_py.exists():
+            return run_py, 'python'
+        if run_sh.exists():
+            return run_sh, 'shell'
+        return None, 'unknown'
 
     def score(self):
         """执行全部分项评分，返回 scores 字典。"""
@@ -48,8 +61,7 @@ class SkillScorer:
             if content.startswith('---') and 'name:' in content and 'description:' in content:
                 score += 5
 
-        run_py = base / "run.py"
-        if run_py.exists() and os.access(run_py, os.X_OK):
+        if self._entry_script and os.access(self._entry_script, os.X_OK):
             score += 5
 
         if (base / "USAGE.md").exists():
@@ -66,20 +78,29 @@ class SkillScorer:
 
     def _score_functionality(self):
         """功能实现 (30 分)"""
-        score = 0
-        run_py = self.skill_dir / "run.py"
-        if not run_py.exists():
+        if not self._entry_script:
             self.scores['functionality'] = 0
-            self.remarks.append("功能实现: 0/30 (run.py 缺失)")
+            self.remarks.append("功能实现: 0/30 (入口脚本缺失，需要 run.py 或 run.sh)")
             return
 
-        content = run_py.read_text(encoding='utf-8')
+        content = self._entry_script.read_text(encoding='utf-8')
+        if self._entry_type == 'python':
+            score = self._score_functionality_python(content)
+        else:
+            score = self._score_functionality_shell(content)
 
+        self.scores['functionality'] = score
+        self.remarks.append(f"功能实现: {score}/30")
+
+    def _score_functionality_python(self, content: str) -> int:
+        score = 0
         has_subparsers = 'add_subparsers' in content
         if has_subparsers:
             score += 6
-            subcommands = ['check', 'fix', 'docgen', 'newmodule', 'create', 'validate', 'archive', 'clean']
-            found = sum(1 for cmd in subcommands if f"'{cmd}'" in content or f'"{cmd}"' in content)
+            subcommands = ['check', 'fix', 'docgen', 'newmodule', 'create',
+                           'validate', 'archive', 'clean']
+            found = sum(1 for cmd in subcommands
+                        if f"'{cmd}'" in content or f'"{cmd}"' in content)
             if found >= 2:
                 score += 2
 
@@ -87,34 +108,58 @@ class SkillScorer:
             score += 3
         if 'choices=' in content:
             score += 2
-
         if 'try:' in content or 'except' in content or 'if rc' in content:
             score += 3
         if 'print(f"❌' in content or 'print("❌' in content:
             score += 2
-
         if 'sys.exit(' in content and 'return 0' in content:
             score += 3
-
         if '--dry-run' in content:
             score += 4
-
         if '--verbose' in content or '-v' in content:
             score += 5
+        return score
 
-        self.scores['functionality'] = score
-        self.remarks.append(f"功能实现: {score}/30")
+    def _score_functionality_shell(self, content: str) -> int:
+        score = 0
+        if 'case' in content and 'esac' in content:
+            score += 6
+            commands = re.findall(r'^\s*(\w[\w-]*)\)', content, re.MULTILINE)
+            if len(commands) >= 2:
+                score += 2
+        if 'getopts' in content or '--' in content or 'shift' in content:
+            score += 3
+        if 'set -e' in content or 'set -euo' in content or 'trap ' in content:
+            score += 3
+        if 'log_error' in content or 'echo "❌' in content or '>&2' in content:
+            score += 2
+        if 'exit 0' in content or 'exit 1' in content:
+            score += 3
+        if '--dry-run' in content or 'DRY_RUN' in content:
+            score += 4
+        if '--verbose' in content or 'VERBOSE' in content:
+            score += 5
+        if 'usage()' in content or 'help' in content:
+            score += 2
+        return score
 
     def _score_quality(self):
         """代码质量 (25 分)"""
-        score = 0
-        run_py = self.skill_dir / "run.py"
-        if not run_py.exists():
+        if not self._entry_script:
             self.scores['quality'] = 0
             return
 
-        content = run_py.read_text(encoding='utf-8')
+        content = self._entry_script.read_text(encoding='utf-8')
+        if self._entry_type == 'python':
+            score = self._score_quality_python(content)
+        else:
+            score = self._score_quality_shell(content)
 
+        self.scores['quality'] = score
+        self.remarks.append(f"代码质量: {score}/25")
+
+    def _score_quality_python(self, content: str) -> int:
+        score = 0
         func_count = content.count('def ')
         if func_count >= 5:
             score += 5
@@ -135,15 +180,39 @@ class SkillScorer:
 
         if 'print(' in content and ('✅' in content or '❌' in content or '⚠️' in content):
             score += 3
-
         if 'os.remove(' in content or 'unlink(' in content or 'shutil.rmtree(' in content:
             score += 3
-
         if '"""' in content and content.count('"""') >= 4:
             score += 4
+        return score
 
-        self.scores['quality'] = score
-        self.remarks.append(f"代码质量: {score}/25")
+    def _score_quality_shell(self, content: str) -> int:
+        score = 0
+        func_count = len(re.findall(r'^\w[\w_]*\s*\(\)', content, re.MULTILINE))
+        if func_count >= 5:
+            score += 5
+        elif func_count >= 3:
+            score += 3
+        else:
+            score += 1
+
+        if 'set -euo pipefail' in content:
+            score += 5
+        elif 'set -e' in content:
+            score += 3
+
+        if 'command -v' in content or 'which ' in content or 'type ' in content:
+            score += 5
+        elif 'test -f' in content or '[ -f' in content:
+            score += 3
+
+        if '✅' in content or '❌' in content or '⚠️' in content:
+            score += 3
+        if 'rm -' in content or 'trap ' in content:
+            score += 3
+        if content.count('#') >= 5:
+            score += 4
+        return score
 
     def _score_docs(self):
         """文档完备性 (15 分)"""
@@ -175,8 +244,26 @@ class SkillScorer:
             if 'USAGE.md' in content or 'SKILL.md' in content:
                 score += 1
 
+        link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+        broken_links = 0
+        for md_file in base.rglob('*.md'):
+            try:
+                md_content = md_file.read_text(encoding='utf-8')
+            except Exception:
+                continue
+            for _, href in link_pattern.findall(md_content):
+                if href.startswith(('http://', 'https://', '#', 'mailto:')):
+                    continue
+                if not (md_file.parent / href).resolve().exists():
+                    broken_links += 1
+        if broken_links == 0:
+            score += 1
+
         self.scores['docs'] = score
-        self.remarks.append(f"文档完备性: {score}/15")
+        if broken_links > 0:
+            self.remarks.append(f"文档完备性: {score}/15 (失效链接 {broken_links} 处)")
+        else:
+            self.remarks.append(f"文档完备性: {score}/15")
 
     def _score_standard(self):
         """规范性 (10 分)"""
@@ -192,9 +279,10 @@ class SkillScorer:
                 if re.fullmatch(r'[a-z][a-z0-9-]*', name):
                     score += 2
 
-        required = ['SKILL.md', 'run.py']
+        required_entry = ['SKILL.md']
         existing = [f.name for f in base.iterdir() if not f.name.startswith('.')]
-        if all(r in existing for r in required):
+        has_entry_script = 'run.py' in existing or 'run.sh' in existing
+        if all(r in existing for r in required_entry) and has_entry_script:
             score += 3
 
         if skill_md.exists():
@@ -202,19 +290,45 @@ class SkillScorer:
             if content.startswith('---') and content.count('---') >= 2:
                 score += 2
 
-        run_py = base / "run.py"
-        if run_py.exists():
-            content = run_py.read_text(encoding='utf-8')
-            if '\n\n' in content:
-                score += 1
-            lines = content.splitlines()
-            if any(line.startswith('    ') for line in lines if line.strip()):
-                score += 1
-            if 'def ' in content and '\n\n' in content:
-                score += 1
+        if self._entry_script:
+            content = self._entry_script.read_text(encoding='utf-8')
+            if self._entry_type == 'python':
+                if '\n\n' in content:
+                    score += 1
+                lines = content.splitlines()
+                if any(line.startswith('    ') for line in lines if line.strip()):
+                    score += 1
+                if 'def ' in content and '\n\n' in content:
+                    score += 1
+            else:
+                if '#!/' in content:
+                    score += 1
+                if 'set -' in content:
+                    score += 1
+                func_count = len(re.findall(r'^\w[\w_]*\s*\(\)', content, re.MULTILINE))
+                if func_count >= 2:
+                    score += 1
+
+        placeholder_pattern = re.compile(r'\{\{[^}]+\}\}')
+        has_placeholder = False
+        check_suffixes = {'.md', '.py', '.sh', '.yaml', '.yml', '.txt'}
+        for f in base.rglob('*'):
+            if f.is_file() and f.suffix in check_suffixes and not f.name.endswith('.j2'):
+                try:
+                    fc = f.read_text(encoding='utf-8')
+                except Exception:
+                    continue
+                if placeholder_pattern.search(fc):
+                    has_placeholder = True
+                    break
+        if has_placeholder:
+            score = max(0, score - 3)
 
         self.scores['standard'] = score
-        self.remarks.append(f"规范性: {score}/10")
+        if has_placeholder:
+            self.remarks.append(f"规范性: {score}/10 (占位符残留扣分)")
+        else:
+            self.remarks.append(f"规范性: {score}/10")
 
     def get_grade(self):
         total = self.scores['total']
@@ -232,9 +346,11 @@ class SkillScorer:
     def generate_report(self) -> str:
         """生成文本评分报告。"""
         grade_icons, grade_text = self.get_grade()
+        entry_label = self._entry_script.name if self._entry_script else '(无)'
         report = (
             f"\n📊 Skill 质量评分报告\n{'='*40}\n"
             f"Skill: {self.skill_dir.name}\n"
+            f"入口脚本: {entry_label}\n"
             f"总评分: {self.scores['total']}/100 {grade_icons} ({grade_text})\n\n"
             "分项:\n"
         )
@@ -245,9 +361,15 @@ class SkillScorer:
         if self.scores['structure'] < 18:
             suggestions.append("补充 USAGE.md 和 README.md 文档")
         if self.scores['functionality'] < 24:
-            suggestions.append("增加 --dry-run 和 --verbose 选项")
+            if self._entry_type == 'shell':
+                suggestions.append("增加 --dry-run、--verbose 和更多子命令")
+            else:
+                suggestions.append("增加 --dry-run 和 --verbose 选项")
         if self.scores['quality'] < 20:
-            suggestions.append("增强异常处理，添加命令可用性检查")
+            if self._entry_type == 'shell':
+                suggestions.append("增强错误处理，添加 trap 和依赖检查")
+            else:
+                suggestions.append("增强异常处理，添加命令可用性检查")
         if self.scores['docs'] < 12:
             suggestions.append("完善故障排除表格和输出示例")
         if self.scores['standard'] < 8:

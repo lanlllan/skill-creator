@@ -11,17 +11,24 @@ skill-creator/
 │   ├── creator/                    # 业务逻辑模块包（Phase 2 拆分）
 │   │   ├── paths.py                # 路径解析
 │   │   ├── validators.py           # 名称/版本校验
-│   │   ├── templates.py            # 模板定义与渲染
+│   │   ├── templates.py            # 模板引擎（Jinja2 + 发现 + 回退）
 │   │   ├── scorer.py               # 质量评分器
 │   │   ├── state_manager.py        # .state.json 结构化状态管理
 │   │   ├── readme_manager.py       # 兼容层（转发到 state_manager）
-│   │   └── commands/               # 各 CLI 命令实现
-│   │       ├── create.py           # create 命令
-│   │       ├── validate.py         # validate 命令
-│   │       ├── archive.py          # archive 命令
-│   │       ├── clean.py            # clean 命令
-│   │       └── batch.py            # batch 命令
-│   ├── tests/                      # pytest 测试套件（85 用例）
+│   │   ├── security.py             # 安全扫描引擎（Phase 5）
+    │   │   ├── packager.py             # 打包引擎（Phase 8）
+    │   │   └── commands/               # 各 CLI 命令实现
+    │   │       ├── create.py           # create 命令
+    │   │       ├── validate.py         # validate 命令
+    │   │       ├── archive.py          # archive 命令
+    │   │       ├── clean.py            # clean 命令
+    │   │       ├── batch.py            # batch 命令
+    │   │       ├── scan.py             # scan 命令（安全扫描）
+    │   │       └── package.py          # package 命令（打包）
+│   ├── templates/                  # Jinja2 模板目录（Phase 6）
+│   │   ├── python/                 # Python 类型模板（4 个 .j2）
+│   │   └── shell/                  # Shell 类型模板（4 个 .j2）
+│   ├── tests/                      # pytest 测试套件（251 用例）
 │   ├── SKILL.md                    # 技能元数据
 │   ├── USAGE.md                    # 使用指南
 │   └── README.md                   # 工具说明与更新记录
@@ -47,6 +54,12 @@ python run.py batch --file skills.yaml
 # 验证
 python run.py validate ./path/to/skill
 
+# 安全扫描
+python run.py scan ./path/to/skill
+
+# 打包
+python run.py package ./path/to/skill
+
 # 归档
 python run.py archive my-skill
 ```
@@ -70,7 +83,7 @@ Remove-Item -Recurse -Force ../tmp/test-skill
 ```bash
 cd skillCreator
 python -m pytest tests/ -v --tb=short
-# 85 个用例，覆盖 validators / create_skill / batch / state_manager
+# 251 个用例，覆盖 validators / create_skill / batch / state_manager / security / scan / templates / Phase 7 验证增强 / Phase 8 打包
 ```
 
 ## 迭代状态
@@ -82,5 +95,8 @@ python -m pytest tests/ -v --tb=short
 | 1.2 | 移除硬编码 WSL 路径 | ✅ 已完成 | v1.2.0 |
 | 2   | 模块化拆分（creator/ 包） | ✅ 已完成 | v2.0.0 |
 | 4   | 状态管理升级（.state.json） | ✅ 已完成 | v3.0.0 |
-| 3   | 模板系统增强（Jinja2） | 🔲 条件触发 | 多语言需求时 |
-| 5   | 生态集成（ClawHub） | 🔲 远期 | API 就绪后 |
+| 5   | 安全扫描（Security Scanning） | ✅ 已完成 | v4.0.0 |
+| 6   | 模板系统增强（Jinja2） | ✅ 已完成 | v5.0.0 |
+| 7   | 验证能力增强 | ✅ 已完成 | v6.0.0 |
+| 8   | 打包与分发 | ✅ 已完成 | v7.0.0 |
+| 9   | 生态集成（ClawHub） | 🔲 远期 | API 就绪后 |
