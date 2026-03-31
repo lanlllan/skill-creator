@@ -93,7 +93,7 @@ python run.py create \
 | `--version` | `-v` | 版本号（默认 1.0.0） | 否 |
 | `--author` | `-a` | 作者（默认 OpenClaw Assistant） | 否 |
 | `--tags` | `-t` | 标签，逗号分隔 | 否 |
-| `--output` | `-o` | 输出目录（默认由程序自动解析 skills-temp 路径） | 否 |
+| `--output` | `-o` | 输出目录（默认在项目根下 `skills-temp/`） | 否 |
 | `--interactive` | `-i` | 交互式模式 | 否 |
 | `--type` | | Skill 类型：`python`（默认）或 `shell` | 否 |
 | `--template-dir` | | 自定义模板目录路径（覆盖内置模板） | 否 |

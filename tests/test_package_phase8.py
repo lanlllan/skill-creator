@@ -20,6 +20,8 @@ import zipfile
 import pytest
 from pathlib import Path
 
+from helpers import SKILL_ROOT
+
 from creator.packager import (
     load_skillignore,
     collect_files,
@@ -386,7 +388,7 @@ class TestCLIIntegration:
             pass
         result = subprocess.run(
             [sys.executable, "run.py", "package", str(skill)],
-            cwd=str(Path(__file__).parent.parent),
+            cwd=str(SKILL_ROOT),
             capture_output=True, text=True,
         )
         assert result.returncode == 0
@@ -397,7 +399,7 @@ class TestCLIIntegration:
         fake_path = tmp_path / "nonexistent"
         result = subprocess.run(
             [sys.executable, "run.py", "package", str(fake_path)],
-            cwd=str(Path(__file__).parent.parent),
+            cwd=str(SKILL_ROOT),
             capture_output=True, text=True,
         )
         assert result.returncode == 1
@@ -407,7 +409,7 @@ class TestCLIIntegration:
         (skill / "credentials.json").write_text('{"k":"v"}', encoding="utf-8")
         result = subprocess.run(
             [sys.executable, "run.py", "package", str(skill), "--force"],
-            cwd=str(Path(__file__).parent.parent),
+            cwd=str(SKILL_ROOT),
             capture_output=True, text=True,
         )
         assert result.returncode == 0

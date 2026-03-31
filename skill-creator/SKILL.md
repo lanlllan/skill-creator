@@ -85,7 +85,7 @@ tags: [tooling, scaffolding, development]
 ## 📁 Skill 结构
 
 ```
-skill-creator/
+skill-creator/                  # Skill 本体（最小完整运行单元，不含测试）
 ├── run.py                      # CLI 入口（纯 argparse + dispatch）
 ├── creator/                    # 业务逻辑模块包
 │   ├── paths.py                # 路径解析
@@ -108,10 +108,11 @@ skill-creator/
 │   ├── python-guided/          # Python 规约驱动富模板（*.j2）
 │   ├── shell/                  # Shell 类型模板（*.j2）
 │   └── shell-guided/           # Shell 规约驱动富模板（*.j2）
-├── tests/                      # pytest 测试套件（405 用例）
 ├── SKILL.md                    # 技能说明
 └── USAGE.md                    # 使用指南
 ```
+
+> **注意**：测试代码（`tests/`）位于项目根目录而非 `skill-creator/` 内部，确保 Skill 目录仅含运行必需文件。
 
 ---
 
@@ -406,8 +407,10 @@ python skill-creator/run.py batch --file skills.yaml
 - 自动生成评分报告，含分维度得分和改进建议
 
 ### 路径管理
-- `create` 写入 `--output`（默认由 `get_skills_temp_dir()` 解析，与 `archive/clean` 一致）
+- `create` 写入 `--output`（默认由 `get_skills_temp_dir()` 解析，fallback 指向 `<repo>/skills-temp/`）
+- `archive` 归档目标由 `get_skills_dir()` 解析（fallback 指向 `<repo>/skills/`）
 - `archive/clean` 默认从 `get_skills_temp_dir()` 查找源目录
+- 所有 fallback 路径不超出 git 仓库根目录（`<repo>/`），环境变量 `OPENCLAW_SKILLS_TEMP` / `OPENCLAW_SKILLS_DIR` 优先级最高
 - 当输出目录自定义时，建议显式传入 `--source`
 
 ---

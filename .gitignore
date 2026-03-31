@@ -22,3 +22,7 @@ Thumbs.db
 
 # tmp
 tmp*/
+
+# Phase 14a: 运行时产生的目录
+skills-temp/
+skills/

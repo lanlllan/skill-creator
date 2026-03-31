@@ -10,8 +10,10 @@ from pathlib import Path
 
 import pytest
 
-# 将 skillCreator/ 加入 sys.path，使 creator 包和 run.py 可被直接引用
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# 将 tests/ 自身加入 sys.path，确保 helpers 模块可被各测试文件导入
+sys.path.insert(0, str(Path(__file__).parent))
+# 将 skill-creator/ 加入 sys.path，使 creator 包和 run.py 可被直接引用
+sys.path.insert(0, str(Path(__file__).parent.parent / "skill-creator"))
 
 
 @pytest.fixture()

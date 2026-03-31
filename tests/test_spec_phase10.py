@@ -579,7 +579,8 @@ class TestPackagerWhitelist:
 # ============================================================
 class TestCLIIntegration:
     def test_spec_generate_and_validate(self, tmp_path):
-        run_py = Path(__file__).parent.parent / 'run.py'
+        from helpers import RUN_PY as _rp
+        run_py = Path(_rp)
         result = subprocess.run(
             [sys.executable, str(run_py), 'spec',
              '-n', 'cli-test', '-d', 'CLI test skill',
