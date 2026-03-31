@@ -1,0 +1,87 @@
+---
+name: __baseline__
+description: __baseline__
+version: 0.0.0
+author: __baseline__
+tags: []
+---
+
+# __Baseline__ - __baseline__
+
+## 📋 Skill 概述
+
+**技能名称**：`__baseline__`  
+**用途**：__baseline__  
+**适用场景**：
+- 需要自动化处理特定任务时
+- 作为工作流中的一个环节被调用时
+
+## 🎯 核心能力
+
+### 1. 主要功能
+- 接收输入参数并执行核心逻辑
+- 返回结构化的执行结果（Result 数据类）
+
+### 2. 错误处理
+- 输入参数校验（长度、格式、文件存在性）
+- 异常捕获与友好提示
+
+## 📁 Skill 结构
+
+```
+__baseline__/
+├── SKILL.md          # 技能说明（本文件）
+├── run.py            # 主入口（含 Result 数据类和命令分发）
+├── USAGE.md          # 使用指南
+└── README.md         # 快速入门
+```
+
+## 🔧 使用方式
+
+```bash
+# 查看帮助
+python run.py --help
+
+# 执行示例命令
+python run.py example --name test
+
+# 详细输出模式
+python run.py --verbose example --name test
+```
+
+## 📝 示例
+
+```bash
+# 基本调用
+python run.py example --name "hello"
+
+# 输出：
+# ✅ Hello, hello!
+```
+
+## 📊 输出示例
+
+```
+✅ Hello, World!
+```
+
+失败时输出：
+```
+❌ 执行失败：名称长度超过 128 字符
+```
+
+## 🐛 故障排除
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| `❌ 执行失败：配置文件不存在` | `--config` 指定的路径无效 | 检查文件路径是否正确 |
+| `❌ 未预期异常：...` | 代码逻辑异常 | 使用 `--verbose` 查看详细信息 |
+
+## 🔗 相关资源
+
+- OpenClaw 文档：https://docs.openclaw.ai
+
+---
+
+*版本：0.0.0*  
+*更新：*
