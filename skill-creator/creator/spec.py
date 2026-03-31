@@ -438,6 +438,51 @@ def _check_field_length(value, constraint_key: str, warnings: list[str]):
         warnings.append(f"{constraint_key} 长度 {length} 超过建议最大值 {max_len}")
 
 
+def build_spec_from_answers(
+    answers: dict[str, str],
+    name: str,
+    description: str,
+    version: str = "1.0.0",
+    author: str = "OpenClaw Assistant",
+    tags: list[str] | None = None,
+) -> SkillSpec:
+    """将意图深化回答映射为 SkillSpec 对象（纯函数）。"""
+    return SkillSpec(
+        meta={
+            'name': name,
+            'description': description,
+            'version': version,
+            'author': author,
+            'tags': tags or [],
+        },
+        purpose={
+            'problem': answers.get('purpose_problem', '') or '',
+            'target_user': answers.get('target_user', '') or '',
+            'scenarios': [s for s in [answers.get('scenario', '')] if s] or [''],
+        },
+        capabilities=[{
+            'name': answers.get('capability_name', '') or '',
+            'description': answers.get('capability_desc', '') or '',
+            'inputs': '',
+            'outputs': '',
+            'example': '',
+        }],
+        commands=[{
+            'name': answers.get('command_name', '') or '',
+            'description': answers.get('command_desc', '') or '',
+            'args': [{'name': '', 'description': ''}],
+            'example': '',
+            'expected_output': '',
+        }],
+        error_handling=[{
+            'scenario': answers.get('error_scenario', '') or '',
+            'cause': '',
+            'solution': '',
+        }],
+        dependencies={'runtime': [], 'external': []},
+    )
+
+
 def spec_to_template_vars(spec: SkillSpec) -> dict:
     """将规约转换为模板变量字典。
 

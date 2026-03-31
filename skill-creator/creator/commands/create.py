@@ -17,7 +17,7 @@ from creator.examples import find_similar_example
 from creator.state_manager import add_skill
 from creator.spec import (
     generate_spec_skeleton, save_spec, load_spec, validate_spec,
-    spec_to_template_vars, SPEC_FILENAME,
+    spec_to_template_vars, build_spec_from_answers, SPEC_FILENAME,
 )
 
 KNOWN_PARAMS = frozenset({'name', 'description', 'version', 'author', 'tags', 'output'})
@@ -325,6 +325,32 @@ def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
         return 1
 
 
+DEEPEN_QUESTIONS = [
+    ('purpose_problem',  '这个 skill 要解决什么问题？（1-2 句话描述痛点）'),
+    ('target_user',      '目标用户是谁？（5-15 字）'),
+    ('scenario',         '列举一个典型使用场景（谁+什么情况+做什么）'),
+    ('capability_name',  '主要能力名称（如「端点健康检查」）'),
+    ('capability_desc',  '该能力的描述（如「对 URL 发送 HTTP 请求...」）'),
+    ('command_name',     '主命令名称（如「check」）'),
+    ('command_desc',     '主命令描述（如「检查指定 URL 健康状态」）'),
+    ('error_scenario',   '可能遇到的错误场景（如「目标 URL 无法连接」）'),
+]
+
+
+def _interactive_deepen(reader=input) -> dict[str, str] | None:
+    """意图深化：通过问答收集 Skill 设计信息。首问 s 全跳过，中途 s 截断。"""
+    print('\n🔍 意图深化 — 帮助生成更高质量的 Skill（输入 s 跳过全部）\n')
+    answers = {}
+    for i, (key, prompt) in enumerate(DEEPEN_QUESTIONS):
+        response = reader(f'  [{i+1}/{len(DEEPEN_QUESTIONS)}] {prompt}\n  > ').strip()
+        if i == 0 and response.lower() == 's':
+            return None
+        if response.lower() == 's':
+            break
+        answers[key] = response
+    return answers
+
+
 def main_create(args):
     """创建新 skill（CLI 适配层，负责交互式输入收集并构造 params dict）。"""
     if getattr(args, 'spec', None):
@@ -365,12 +391,44 @@ def main_create(args):
     skill_type = getattr(args, 'type', 'python')
     template_dir = getattr(args, 'template_dir', None)
 
+    spec_variables = None
+    tmp_spec_path = None
+    skip_deepen = getattr(args, 'skip_deepen', False)
+
+    if args.interactive and not skip_deepen:
+        answers = _interactive_deepen()
+        if answers is not None:
+            spec = build_spec_from_answers(
+                answers, skill_name, description,
+                version=version, author=author, tags=tags,
+            )
+            errors, warnings = validate_spec(spec)
+            for w in warnings:
+                print(f'  ⚠️  {w}')
+            if errors:
+                reasons = '; '.join(errors[:3])
+                print(f'⚠️  深化信息不完整（{reasons}），已使用基础模板创建。')
+                print('   后续可运行 create --guided 重新创建。')
+            else:
+                import tempfile
+                spec_variables = spec_to_template_vars(spec)
+                tmp = tempfile.NamedTemporaryFile(
+                    suffix='.yaml', delete=False, mode='w', encoding='utf-8')
+                save_spec(spec, Path(tmp.name))
+                tmp.close()
+                tmp_spec_path = tmp.name
+
     try:
         return create_skill(params, skill_type=skill_type,
-                            template_dir=template_dir)
+                            template_dir=template_dir,
+                            spec_path=tmp_spec_path,
+                            spec_variables=spec_variables)
     except ValueError as e:
         print(f"❌ {e}")
         return 1
+    finally:
+        if tmp_spec_path and Path(tmp_spec_path).exists():
+            Path(tmp_spec_path).unlink(missing_ok=True)
 
 
 def _create_guided(args) -> int:

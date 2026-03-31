@@ -76,6 +76,8 @@ def main():
     create_spec_group.add_argument('--spec', help='从已有规约文件创建（.skill-spec.yaml 路径）')
     create_parser.add_argument('--strict', action='store_true',
                                help='严格模式：规约验证有任何问题时阻断创建')
+    create_parser.add_argument('--skip-deepen', action='store_true',
+                               help='跳过意图深化（交互模式下直接用标准模板）')
 
     validate_parser = subparsers.add_parser('validate', help='验证 skill')
     validate_parser.add_argument('path', help='skill 目录路径')
