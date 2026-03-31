@@ -12,9 +12,41 @@
 pip install pyyaml jinja2
 ```
 
+## ⭐ 推荐工作流
+
+最高效的 Skill 开发路径：交互式创建自动触发需求细化，一步生成高质量骨架。
+
+```
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────┐
+│  交互式创建      │ ──▶ │  需求细化（自动触发）   │ ──▶ │  验证 + 归档     │
+│  create -i       │     │  规约骨架 → 填充       │     │  validate → archive │
+└─────────────────┘     └──────────────────────┘     └─────────────────┘
+```
+
+```bash
+cd skill-creator
+
+# 1. 交互式创建（推荐，自动引导需求细化）
+python run.py create --interactive
+
+# 2. 检查产出、编辑业务逻辑
+#    - 将 run.py 中的 TODO 注释替换为真实实现
+#    - 完善 SKILL.md 的各章节
+
+# 3. 验证
+python run.py validate ./path/to/my-skill
+
+# 4. 归档到正式目录
+python run.py archive my-skill
+```
+
+> **提示**：直接使用 `create -n xxx -d "描述"` 也可以快速创建，但产物为通用模板，需要更多手工定制。推荐首次创建时使用 `--interactive`。
+
+---
+
 ## 🚀 快速开始
 
-### 1. 交互式创建
+### 1. 交互式创建（推荐）
 
 ```bash
 cd ~/.openclaw/workspace/skills/skill-creator
@@ -27,6 +59,8 @@ python run.py create --interactive
 - 版本（默认 1.0.0）
 - 作者
 - 标签（如 `logging,analysis`）
+
+交互模式会自动进行需求细化，生成包含 TODO 注释的业务骨架（而非通用模板）。
 
 ### 2. 快速创建
 
@@ -47,11 +81,13 @@ python run.py create \
 ✅ 已创建：run.py          # Shell 类型时为 run.sh
 ✅ 已创建：USAGE.md
 ✅ 已创建：README.md
-⚠️  skills-temp/README.md 不存在或缺少技能表格，跳过更新
+
+📊 Skill 质量评分报告
+...
 
 ✅ Skill 'test-runner' 创建完成！
    位置：<skills-temp 解析路径>/test-runner
-   下一步：确认后归档到 skills/ 目录
+   下一步：检查文档并确认后归档到 skills 目录
 ```
 
 ---
@@ -94,10 +130,10 @@ python run.py create \
 | `--author` | `-a` | 作者（默认 OpenClaw Assistant） | 否 |
 | `--tags` | `-t` | 标签，逗号分隔 | 否 |
 | `--output` | `-o` | 输出目录（默认在项目根下 `skills-temp/`） | 否 |
-| `--interactive` | `-i` | 交互式模式 | 否 |
+| `--interactive` | `-i` | ⭐ 交互式模式（推荐，自动触发需求细化） | 否 |
 | `--type` | | Skill 类型：`python`（默认）或 `shell` | 否 |
 | `--template-dir` | | 自定义模板目录路径（覆盖内置模板） | 否 |
-| `--guided` | | 引导式创建：生成规约骨架，提示填充后再用 `--spec` 渲染 | 否 |
+| `--guided` | | ⭐ 引导式创建：生成规约骨架 → 填充 → 渲染为富内容产物 | 否 |
 | `--spec` | | 从已有规约文件创建（`.skill-spec.yaml` 路径），自动使用富内容模板 | 否 |
 | `--strict` | | 严格模式：规约验证有任何问题时阻断创建 | 否 |
 
@@ -492,22 +528,25 @@ skill-name/
 ## 🔄 完整工作流程
 
 ```
-1. 创建技能
+1. 创建技能（推荐交互式，自动引导需求细化）
+   python run.py create --interactive
+   
+   # 或快速创建（跳过交互）
    python run.py create -n my-skill -d "描述"
    
 2. 检查生成的文件
    ls skills-temp/my-skill/
    
 3. 编辑和定制
-   - 修改入口脚本（run.py / run.sh）实现具体逻辑
+   - 将 run.py 中的 TODO 注释替换为真实业务逻辑
    - 完善 SKILL.md 的各个章节
    - 添加 templates/、utils/ 等目录（如需要）
    
 4. 验证
    python run.py validate skills-temp/my-skill/
    
-5. 用户确认
-   （用户查看并确认技能设计）
+5. 查看评分报告中的改进建议
+   （报告会列出具体改进路径和预估提升分值）
    
 6. 归档（省略 --dest 自动推导目标目录）
    python run.py archive my-skill
@@ -590,5 +629,5 @@ python run.py batch --file skills.yaml
 
 ---
 
-*Skill Creator 版本：v11.0.0*  
-*最后更新：2026-03-30*
+*Skill Creator 版本：v14.1.0*  
+*最后更新：2026-03-31*
