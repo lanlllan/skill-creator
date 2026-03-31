@@ -8,10 +8,31 @@ from creator.paths import get_skills_dir, get_skills_temp_dir
 from creator.state_manager import archive_skill
 
 
+def _check_legacy_archive_path(new_dest: Path):
+    """检测旧 fallback 路径下是否残留归档 skill，打印迁移提示。"""
+    legacy_dir = new_dest.parent
+    try:
+        legacy_skills = [
+            d for d in legacy_dir.iterdir()
+            if d.is_dir() and (d / "SKILL.md").exists()
+            and d.name != "skill-creator"
+        ]
+    except OSError:
+        return
+    if legacy_skills:
+        names = ", ".join(d.name for d in legacy_skills[:5])
+        print(f"⚠️  检测到 {legacy_dir} 下存在归档 skill（{names}），"
+              f"建议迁移到 {new_dest}/")
+
+
 def main_archive(args):
     skill_name = args.name
+    using_fallback = not args.dest
     dest_dir = Path(args.dest).expanduser().resolve() if args.dest else get_skills_dir()
     dry_run = args.dry_run
+
+    if using_fallback:
+        _check_legacy_archive_path(dest_dir)
 
     if args.source:
         src = Path(args.source).expanduser().resolve() / skill_name

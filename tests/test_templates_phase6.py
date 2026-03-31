@@ -430,7 +430,8 @@ class TestCLIIntegration:
         """模拟 CLI 调用。"""
         sys_path_backup = sys.path[:]
         try:
-            sys.path.insert(0, str(Path(__file__).parent.parent))
+            from helpers import SKILL_ROOT
+            sys.path.insert(0, str(SKILL_ROOT))
             import run as cli_module
             import importlib
             importlib.reload(cli_module)

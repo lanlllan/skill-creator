@@ -46,14 +46,14 @@ skills:
 **单元测试（pytest）**：
 
 ```bash
-cd skillCreator
+# 从项目根目录执行
 python -m pytest tests/ -v --tb=short
 ```
 
 **手动冒烟测试**（在项目根目录下执行）：
 
 ```bash
-cd skillCreator
+cd skill-creator
 
 # create + validate + clean
 python run.py create -n smoke-test -d "冒烟测试" -o ../tmp

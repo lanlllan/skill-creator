@@ -23,7 +23,7 @@ import subprocess
 import pytest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from helpers import RUN_PY
 
 from creator.examples import (
     EXAMPLES_DIR,
@@ -38,7 +38,8 @@ from creator.scorer import SkillScorer
 
 EXAMPLE_NAMES = ["simple-greeter", "file-analyzer", "api-health-checker"]
 
-RUN_PY = str(Path(__file__).parent.parent / "run.py")
+
+
 
 
 # ═══════════════════════════════════════════════════════════════════════

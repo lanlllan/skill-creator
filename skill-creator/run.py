@@ -11,7 +11,7 @@ import argparse
 import sys
 from pathlib import Path
 
-# 确保 skillCreator/ 目录在 sys.path 中，使 creator 包可被直接引用
+# 确保 skill-creator/ 目录在 sys.path 中，使 creator 包可被直接引用
 sys.path.insert(0, str(Path(__file__).parent))
 
 from creator.commands.create import main_create
