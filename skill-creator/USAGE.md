@@ -136,6 +136,7 @@ python run.py create \
 | `--guided` | | ⭐ 引导式创建：生成规约骨架 → 填充 → 渲染为富内容产物 | 否 |
 | `--spec` | | 从已有规约文件创建（`.skill-spec.yaml` 路径），自动使用富内容模板 | 否 |
 | `--strict` | | 严格模式：规约验证有任何问题时阻断创建 | 否 |
+| `--skip-deepen` | | 跳过意图深化（交互模式下直接用标准模板） | 否 |
 
 **互斥规则**：`--guided` 与 `--spec` 互斥。`--spec` 模式下 `--interactive` 无效。
 

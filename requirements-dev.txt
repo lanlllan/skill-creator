@@ -1,2 +1,2 @@
--r requirements.txt
+-r skill-creator/requirements.txt
 pytest>=8.0

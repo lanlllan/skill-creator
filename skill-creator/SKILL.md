@@ -64,7 +64,7 @@ tags: [tooling, scaffolding, development]
 - 规约 schema 冻结：旧代码兼容新版 spec（忽略未知字段），新代码兼容旧版 spec（使用默认值）
 - batch 集成：YAML 条目支持 `spec` 字段指定规约文件路径
 
-### 7. 参考实现库（Reference Library）
+### 6. 参考实现库（Reference Library）
 - 内置 3 个高质量样例 Skill（均通过 validate + scan，评分 ≥ 85）：
   - `simple-greeter`（入门）：问候工具，演示基本 argparse 子命令 + Result 数据类
   - `file-analyzer`（中等）：文件分析器，演示文件系统遍历 + 统计报告
@@ -73,7 +73,7 @@ tags: [tooling, scaffolding, development]
 - `create --spec` 联动：创建时自动推荐相似样例（Jaccard 关键词相似度）
 - `create --guided` 联动：生成规约骨架后提示查看内置样例
 
-### 6. 工作流管理
+### 7. 工作流管理
 - 创建 → 确认 → 归档 流程
 - 结构化状态管理：`.state.json` 原子写入，README.md 自动生成（只读视图）
 - 支持 `archive/clean --source` 处理自定义源目录
@@ -317,8 +317,7 @@ python skill-creator/run.py create \
 load-tester/
 ├── SKILL.md (含 front matter)
 ├── run.py (基本框架)
-├── USAGE.md (使用说明模板)
-└── utils/ (示例工具函数)
+└── USAGE.md (使用说明模板)
 ```
 
 ### 示例 2：验证现有 skill
