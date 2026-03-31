@@ -17,22 +17,28 @@ skill-creator/
 │   │   ├── readme_manager.py       # 兼容层（转发到 state_manager）
 │   │   ├── security.py             # 安全扫描引擎（Phase 5）
     │   │   ├── packager.py             # 打包引擎（Phase 8）
-    │   │   ├── spec.py                 # 规约引擎（Phase 10）
-    │   │   └── commands/               # 各 CLI 命令实现
-    │   │       ├── create.py           # create 命令
-    │   │       ├── validate.py         # validate 命令
-    │   │       ├── archive.py          # archive 命令
-    │   │       ├── clean.py            # clean 命令
-    │   │       ├── batch.py            # batch 命令
-    │   │       ├── scan.py             # scan 命令（安全扫描）
-    │   │       ├── package.py          # package 命令（打包）
-    │   │       └── spec_cmd.py         # spec 命令（规约生成与验证）
+│   │   ├── spec.py                 # 规约引擎（Phase 10）
+│   │   ├── examples.py             # 参考实现库（Phase 13）
+│   │   └── commands/               # 各 CLI 命令实现
+│   │       ├── create.py           # create 命令
+│   │       ├── validate.py         # validate 命令
+│   │       ├── archive.py          # archive 命令
+│   │       ├── clean.py            # clean 命令
+│   │       ├── batch.py            # batch 命令
+│   │       ├── scan.py             # scan 命令（安全扫描）
+│   │       ├── package.py          # package 命令（打包）
+│   │       ├── spec_cmd.py         # spec 命令（规约生成与验证）
+│   │       └── examples_cmd.py     # examples 命令（参考样例）
 │   ├── templates/                  # Jinja2 模板目录（Phase 6 + Phase 11）
 │   │   ├── python/                 # Python 类型模板（4 个 .j2）
 │   │   ├── python-guided/          # Python 规约驱动富模板（4 个 .j2，Phase 11）
 │   │   ├── shell/                  # Shell 类型模板（4 个 .j2）
 │   │   └── shell-guided/           # Shell 规约驱动富模板（4 个 .j2，Phase 11）
-│   ├── tests/                      # pytest 测试套件（367 用例）
+│   ├── examples/                   # 内置参考样例（Phase 13）
+│   │   ├── simple-greeter/         # 入门样例
+│   │   ├── file-analyzer/          # 中等样例
+│   │   └── api-health-checker/     # 进阶样例
+│   ├── tests/                      # pytest 测试套件（405 用例）
 │   ├── SKILL.md                    # 技能元数据
 │   ├── USAGE.md                    # 使用指南
 │   └── README.md                   # 工具说明与更新记录
@@ -70,6 +76,12 @@ python run.py spec -n my-skill -d "描述"
 # 从规约创建
 python run.py create --spec .skill-spec.yaml
 
+# 查看内置参考样例
+python run.py examples
+
+# 复制样例到当前目录
+python run.py examples --copy simple-greeter -o .
+
 # 归档
 python run.py archive my-skill
 ```
@@ -93,7 +105,7 @@ Remove-Item -Recurse -Force ../tmp/test-skill
 ```bash
 cd skillCreator
 python -m pytest tests/ -v --tb=short
-# 367 个用例，覆盖 validators / create_skill / batch / state_manager / security / scan / templates / Phase 7 验证增强 / Phase 8 打包 / Phase 10 规约系统 / Phase 11 富内容模板 / Phase 12 内容感知评分
+# 405 个用例，覆盖 validators / create_skill / batch / state_manager / security / scan / templates / Phase 7 验证增强 / Phase 8 打包 / Phase 10 规约系统 / Phase 11 富内容模板 / Phase 12 内容感知评分 / Phase 13 参考实现库
 ```
 
 ## 迭代状态
@@ -112,4 +124,5 @@ python -m pytest tests/ -v --tb=short
 | 10  | 规约系统（Skill Specification） | ✅ 已完成 | v8.0.0 |
 | 11  | 富内容模板（Rich Content Templates） | ✅ 已完成 | v9.0.0 |
 | 12  | 内容感知评分（Content-Aware Scoring） | ✅ 已完成 | v10.0.0 |
+| 13  | 参考实现库（Reference Library） | ✅ 已完成 | v11.0.0 |
 | 9   | 生态集成（ClawHub） | 🔲 远期 | API 就绪后 |

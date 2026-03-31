@@ -66,6 +66,25 @@ python run.py batch --file ../tmp/test.yaml
 
 ## 更新记录
 
+### v11.0.0（Phase 13）— 2026-03-30
+
+**参考实现库（Reference Library）**
+
+核心变更：
+- 内置 3 个高质量样例 Skill，均通过 validate + scan，评分 ≥ 85：
+  - `simple-greeter`（入门）：问候工具，演示 argparse 子命令 + Result 数据类
+  - `file-analyzer`（中等）：文件分析器，演示文件系统遍历 + 统计报告
+  - `api-health-checker`（进阶）：API 健康检查，演示网络请求 + 批量检测 + YAML 配置
+- 新增 `examples` 子命令：列出所有样例（按复杂度排序）、查看样例详情（`--show`）、复制样例到目标目录（`--copy`）
+- `create --spec` 联动：创建时自动推荐与规约最相似的内置样例（Jaccard 关键词相似度，阈值 0.15）
+- `create --guided` 联动：生成规约骨架后提示查看 `examples` 命令
+
+新增文件：`examples/` 目录（3 个样例）、`creator/examples.py`、`creator/commands/examples_cmd.py`、`tests/test_examples_phase13.py`
+修改文件：`run.py`、`creator/commands/create.py`
+测试：367 → 405 passed（+38 新增，含 7 个审查修复回归用例）
+
+---
+
 ### v10.0.0（Phase 12）— 2026-03-30
 
 **内容感知评分（Content-Aware Scoring）**

@@ -1,0 +1,8 @@
+endpoints:
+  - name: "httpbin GET"
+    url: "https://httpbin.org/get"
+  - name: "httpbin 状态 200"
+    url: "https://httpbin.org/status/200"
+  - name: "httpbin 延迟 1s"
+    url: "https://httpbin.org/delay/1"
+    timeout: 3

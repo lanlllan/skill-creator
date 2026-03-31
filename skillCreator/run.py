@@ -22,6 +22,7 @@ from creator.commands.batch import main_batch
 from creator.commands.scan import main_scan
 from creator.commands.package import main_package
 from creator.commands.spec_cmd import main_spec
+from creator.commands.examples_cmd import main_examples
 
 
 def main():
@@ -116,6 +117,11 @@ def main():
     package_parser.add_argument('--force', action='store_true',
                                 help='即使 validate/scan 有 error 也强制打包')
 
+    examples_parser = subparsers.add_parser('examples', help='查看内置参考样例')
+    examples_parser.add_argument('--show', help='查看指定样例的详细说明')
+    examples_parser.add_argument('--copy', help='复制指定样例到目标目录')
+    examples_parser.add_argument('--output', '-o', help='复制目标目录（默认当前目录）')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -131,6 +137,7 @@ def main():
         'scan': main_scan,
         'package': main_package,
         'spec': main_spec,
+        'examples': main_examples,
     }
     return dispatch[args.command](args)
 

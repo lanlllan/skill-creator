@@ -1,0 +1,71 @@
+meta:
+  name: file-analyzer
+  description: "分析文件和目录的统计信息，包括行数统计、类型分布和大小报告"
+  version: 1.0.0
+  author: "OpenClaw Team"
+  tags: [file, analysis, statistics, intermediate]
+  type: python
+
+purpose:
+  problem: "项目中文件数量庞大，开发者需要快速了解代码行数分布、文件类型占比和目录大小，以便评估项目规模和优化结构。"
+  target_users: "开发者、技术主管、DevOps 工程师"
+  scenarios:
+    - "技术主管评审时需要快速了解项目代码规模和语言分布"
+    - "重构前分析目录结构，识别大文件和冗余文件"
+    - "CI 流水线中自动生成项目统计报告"
+
+capabilities:
+  - name: "行数统计"
+    description: "统计指定目录中所有文件的行数，支持按扩展名分组汇总"
+    inputs: "目标目录路径"
+    outputs: "每个文件的行数、按扩展名的分组汇总、总行数"
+  - name: "类型分布"
+    description: "按文件扩展名统计文件数量和体积占比"
+    inputs: "目标目录路径"
+    outputs: "扩展名 → 文件数量、总字节数、百分比"
+  - name: "大小报告"
+    description: "输出目录内文件的大小排名，识别占空间最多的文件"
+    inputs: "目标目录路径、显示数量（默认 10）"
+    outputs: "文件路径 + 文件大小（可读格式），按大小降序"
+
+commands:
+  - name: count
+    description: "统计目录中所有文件的行数"
+    args:
+      - name: "--path"
+        description: "目标目录路径"
+        type: string
+        required: true
+      - name: "--ext"
+        description: "仅统计指定扩展名（如 .py），不指定则统计全部"
+        type: string
+        required: false
+  - name: types
+    description: "按文件扩展名统计分布"
+    args:
+      - name: "--path"
+        description: "目标目录路径"
+        type: string
+        required: true
+  - name: top
+    description: "输出最大文件排名"
+    args:
+      - name: "--path"
+        description: "目标目录路径"
+        type: string
+        required: true
+      - name: "--limit"
+        description: "显示前 N 个最大文件（默认 10）"
+        type: integer
+        required: false
+
+error_handling:
+  - condition: "路径不存在或不可读"
+    action: "返回错误信息并退出码 1"
+  - condition: "目录为空（无文件）"
+    action: "正常返回空结果，提示目录为空"
+  - condition: "二进制文件行数统计"
+    action: "跳过二进制文件，仅统计文本文件"
+
+dependencies:
+  - "Python >= 3.9（标准库即可，无第三方依赖）"

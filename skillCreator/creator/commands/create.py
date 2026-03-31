@@ -13,6 +13,7 @@ from creator.paths import get_skills_temp_dir
 from creator.validators import validate_skill_name, validate_version
 from creator.templates import generate_files
 from creator.scorer import SkillScorer
+from creator.examples import find_similar_example
 from creator.state_manager import add_skill
 from creator.spec import (
     generate_spec_skeleton, save_spec, load_spec, validate_spec,
@@ -413,6 +414,8 @@ def _create_guided(args) -> int:
     print(f"📝 规约文件已生成：{spec_path}")
     print("   请填充 purpose / capabilities / commands / error_handling 各字段")
     print(f"   填充完成后运行：python run.py create --spec {spec_path}")
+    print()
+    print("💡 提示：可运行 `python run.py examples` 查看内置参考样例。")
     return 0
 
 
@@ -443,6 +446,11 @@ def _create_from_spec(args) -> int:
     if strict and (errors or warnings):
         print("规约验证未通过（--strict 模式）")
         return 1
+
+    similar = find_similar_example(spec)
+    if similar:
+        print(f"💡 建议：你的 Skill 设计与内置样例 \"{similar}\" 相似。")
+        print(f"   运行 `python run.py examples --show {similar}` 查看参考实现。")
 
     variables = spec_to_template_vars(spec)
     params = {

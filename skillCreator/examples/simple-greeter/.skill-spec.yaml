@@ -1,0 +1,43 @@
+meta:
+  name: simple-greeter
+  description: "根据姓名和语言生成个性化问候语"
+  version: "1.0.0"
+  author: "OpenClaw Team"
+  tags: [demo, greeting, beginner]
+  type: python
+
+purpose:
+  problem: "在多语言团队中，需要快速生成符合文化习惯的问候语，手动拼接容易出错且不统一。"
+  target_users: "国际化团队的开发者、运维人员"
+  scenarios:
+    - "新成员入职时，自动发送多语言欢迎消息"
+    - "定时任务中生成每日问候推送内容"
+    - "CLI 工具的友好交互提示"
+
+capabilities:
+  - name: "多语言问候"
+    description: "支持中文、英文、日文三种语言的问候语生成"
+    inputs: "姓名（字符串）、语言代码（zh/en/ja）"
+    outputs: "格式化的问候语字符串"
+
+commands:
+  - name: greet
+    description: "生成问候语"
+    args:
+      - name: "--name"
+        description: "要问候的姓名"
+        type: string
+        required: true
+      - name: "--lang"
+        description: "语言代码：zh（中文）、en（英文）、ja（日文）"
+        type: string
+        required: false
+
+error_handling:
+  - condition: "不支持的语言代码"
+    action: "回退到英文并发出警告"
+  - condition: "姓名为空"
+    action: "返回错误信息，退出码 1"
+
+dependencies:
+  - "Python >= 3.9（标准库即可，无第三方依赖）"

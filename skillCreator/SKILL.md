@@ -1,7 +1,7 @@
 ---
 name: skill-creator
 description: 创建符合 OpenClaw 规范的新 Skill，自动化生成目录结构、模板文件和文档
-version: 10.0.0
+version: 11.0.0
 author: Zhiheng Yang
 tags: [tooling, scaffolding, development]
 ---
@@ -64,6 +64,15 @@ tags: [tooling, scaffolding, development]
 - 规约 schema 冻结：旧代码兼容新版 spec（忽略未知字段），新代码兼容旧版 spec（使用默认值）
 - batch 集成：YAML 条目支持 `spec` 字段指定规约文件路径
 
+### 7. 参考实现库（Reference Library）
+- 内置 3 个高质量样例 Skill（均通过 validate + scan，评分 ≥ 85）：
+  - `simple-greeter`（入门）：问候工具，演示基本 argparse 子命令 + Result 数据类
+  - `file-analyzer`（中等）：文件分析器，演示文件系统遍历 + 统计报告
+  - `api-health-checker`（进阶）：API 健康检查，演示网络请求 + 批量检测 + YAML 配置
+- `examples` 命令：列出、查看、复制内置样例
+- `create --spec` 联动：创建时自动推荐相似样例（Jaccard 关键词相似度）
+- `create --guided` 联动：生成规约骨架后提示查看内置样例
+
 ### 6. 工作流管理
 - 创建 → 确认 → 归档 流程
 - 结构化状态管理：`.state.json` 原子写入，README.md 自动生成（只读视图）
@@ -84,17 +93,22 @@ skill-creator/
 │   ├── templates.py            # 模板渲染（Jinja2 + 回退）
 │   ├── scorer.py               # 质量评分器（6 维度：structure/functionality/quality/docs/standard/content）
 │   ├── security.py             # 安全扫描引擎
-    │   ├── packager.py             # 打包引擎（.skillignore / zip / SHA256）
+│   ├── packager.py             # 打包引擎（.skillignore / zip / SHA256）
 │   ├── spec.py                 # 规约引擎（SkillSpec / 骨架生成 / 加载 / 验证）
-    │   ├── state_manager.py        # .state.json 结构化状态管理
-    │   ├── readme_manager.py       # 兼容层（转发到 state_manager）
-    │   └── commands/               # 子命令：create / validate / archive / clean / batch / scan / package / spec
+│   ├── examples.py             # 参考实现库（样例列出 / 查看 / 复制 / 相似推荐）
+│   ├── state_manager.py        # .state.json 结构化状态管理
+│   ├── readme_manager.py       # 兼容层（转发到 state_manager）
+│   └── commands/               # 子命令：create / validate / ... / examples
+├── examples/                   # 内置参考样例（Phase 13）
+│   ├── simple-greeter/         # 入门样例：问候工具
+│   ├── file-analyzer/          # 中等样例：文件分析器
+│   └── api-health-checker/     # 进阶样例：API 健康检查
 ├── templates/                  # Jinja2 模板目录
 │   ├── python/                 # Python 类型模板（*.j2）
 │   ├── python-guided/          # Python 规约驱动富模板（*.j2）
 │   ├── shell/                  # Shell 类型模板（*.j2）
 │   └── shell-guided/           # Shell 规约驱动富模板（*.j2）
-├── tests/                      # pytest 测试套件（367 用例）
+├── tests/                      # pytest 测试套件（405 用例）
 ├── SKILL.md                    # 技能说明
 └── USAGE.md                    # 使用指南
 ```
@@ -130,6 +144,15 @@ python skill-creator/run.py clean my-skill --source ./custom-dir
 
 # 8. 批量创建（从 YAML 文件）
 python skill-creator/run.py batch --file skills-to-create.yaml
+
+# 9. 查看内置参考样例
+python skill-creator/run.py examples
+
+# 10. 查看指定样例详情
+python skill-creator/run.py examples --show simple-greeter
+
+# 11. 复制样例到当前目录
+python skill-creator/run.py examples --copy file-analyzer -o .
 ```
 
 ### 交互式创建
@@ -392,6 +415,7 @@ python skill-creator/run.py batch --file skills.yaml
 ## 📈 未来增强
 
 - [x] 支持更多模板类型（shell script skill — Phase 6 已实现）
+- [x] 内置参考实现库（Phase 13 已实现，含 3 个样例 + 相似推荐）
 - [ ] 支持更多模板类型（Go skill、composite skill）
 - [ ] 集成 clawhub 发布流程
 - [ ] 生成 CI/CD 配置文件（GitHub Actions）
@@ -410,6 +434,6 @@ python skill-creator/run.py batch --file skills.yaml
 
 ---
 
-*Skill 版本：v9.0.0*  
+*Skill 版本：v11.0.0*  
 *最后更新：2026-03-30*  
 *状态：生效中*

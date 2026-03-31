@@ -332,6 +332,42 @@ drafts/
 - `*.pyc`、`*.pyo` 编译文件
 - `*.skill` 文件（工具产物不打包）
 
+### `examples` - 查看内置参考样例
+
+浏览、查看和复制内置的高质量样例 Skill：
+
+```bash
+# 列出所有内置样例（按复杂度排序）
+python run.py examples
+
+# 查看指定样例的详细说明（输出 SKILL.md 内容）
+python run.py examples --show simple-greeter
+
+# 复制样例到当前目录（作为新项目起点）
+python run.py examples --copy file-analyzer -o .
+
+# 复制样例到指定目录
+python run.py examples --copy api-health-checker -o ./my-skills
+```
+
+| 参数 | 短 | 说明 | 必填 |
+|------|---|------|------|
+| `--show` | | 查看指定样例的详细说明 | 否 |
+| `--copy` | | 复制指定样例到目标目录 | 否 |
+| `--output` | `-o` | 复制目标目录（默认当前目录） | 否 |
+
+**内置样例**：
+
+| 样例名 | 复杂度 | 说明 |
+|--------|--------|------|
+| `simple-greeter` | 入门 | 问候工具，演示基本 argparse + Result 数据类 |
+| `file-analyzer` | 中等 | 文件分析器，演示文件系统遍历 + 统计报告 |
+| `api-health-checker` | 进阶 | API 健康检查，演示网络请求 + 批量检测 + YAML 配置 |
+
+**相似推荐联动**：使用 `create --spec` 时，如果规约内容与某个内置样例相似，会自动提示可参考的样例名。
+
+---
+
 ### `batch` - 批量创建（从 YAML 文件）
 
 从 YAML 文件批量创建多个 skill，单条失败不阻断整批：
@@ -554,5 +590,5 @@ python run.py batch --file skills.yaml
 
 ---
 
-*Skill Creator 版本：v10.0.0*  
+*Skill Creator 版本：v11.0.0*  
 *最后更新：2026-03-30*

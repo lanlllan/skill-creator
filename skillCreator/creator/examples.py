@@ -1,0 +1,172 @@
+"""参考实现库核心模块 — 内置样例的列出、查看和复制。"""
+
+import shutil
+from pathlib import Path
+
+import yaml
+
+EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
+
+COMPLEXITY_ORDER = {"beginner": 0, "intermediate": 1, "advanced": 2}
+
+
+def _load_example_meta(example_dir: Path) -> dict:
+    """从样例的 .skill-spec.yaml 加载元信息。"""
+    spec_file = example_dir / ".skill-spec.yaml"
+    if not spec_file.exists():
+        return {}
+    data = yaml.safe_load(spec_file.read_text(encoding="utf-8"))
+    meta = data.get("meta", {})
+    return meta
+
+
+_COMPLEXITY_LEVELS = {"beginner", "intermediate", "advanced"}
+
+
+def _infer_complexity(example_dir: Path, tags: list[str] | None = None) -> str:
+    """根据显式元信息或样例内容推断复杂度级别。优先从 tags 识别显式标记，推断仅作兜底。"""
+    if tags:
+        for tag in tags:
+            if tag in _COMPLEXITY_LEVELS:
+                return tag
+    run_py = example_dir / "run.py"
+    if not run_py.exists():
+        return "beginner"
+    content = run_py.read_text(encoding="utf-8")
+    subcommand_count = content.count("add_parser(")
+    if subcommand_count >= 3:
+        return "advanced"
+    elif subcommand_count >= 2:
+        return "intermediate"
+    return "beginner"
+
+
+def list_examples() -> list[dict]:
+    """列出所有内置样例，返回 [{name, description, complexity}]。"""
+    if not EXAMPLES_DIR.is_dir():
+        return []
+    results = []
+    for d in sorted(EXAMPLES_DIR.iterdir()):
+        if not d.is_dir() or d.name.startswith("."):
+            continue
+        meta = _load_example_meta(d)
+        tags = meta.get("tags", [])
+        results.append({
+            "name": meta.get("name", d.name),
+            "description": meta.get("description", ""),
+            "complexity": _infer_complexity(d, tags),
+            "tags": tags,
+        })
+    results.sort(key=lambda x: COMPLEXITY_ORDER.get(x["complexity"], 99))
+    return results
+
+
+def show_example(name: str) -> str:
+    """返回样例的 SKILL.md 内容（快速预览）。不存在则返回错误信息。"""
+    example_dir = EXAMPLES_DIR / name
+    if not example_dir.is_dir():
+        available = [d.name for d in EXAMPLES_DIR.iterdir() if d.is_dir() and not d.name.startswith(".")]
+        return f"错误：样例 '{name}' 不存在。可用样例：{', '.join(available)}"
+    skill_md = example_dir / "SKILL.md"
+    if not skill_md.exists():
+        return f"错误：样例 '{name}' 缺少 SKILL.md"
+    return skill_md.read_text(encoding="utf-8")
+
+
+def copy_example(name: str, output_dir: Path) -> tuple[bool, str]:
+    """将样例复制到指定目录。返回 (success, message)。"""
+    example_dir = EXAMPLES_DIR / name
+    if not example_dir.is_dir():
+        available = [d.name for d in EXAMPLES_DIR.iterdir() if d.is_dir() and not d.name.startswith(".")]
+        return False, f"错误：样例 '{name}' 不存在。可用样例：{', '.join(available)}"
+
+    target = output_dir / name
+    if target.exists():
+        return False, f"错误：目标目录已存在 — {target}"
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(example_dir, target)
+    file_count = sum(1 for _ in target.rglob("*") if _.is_file())
+    return True, f"✅ 样例 '{name}' 已复制到 {target}（{file_count} 个文件）"
+
+
+def get_example_keywords(name: str) -> set[str]:
+    """提取样例的关键词（基于 capabilities 和 commands 字段），用于相似度匹配。"""
+    example_dir = EXAMPLES_DIR / name
+    spec_file = example_dir / ".skill-spec.yaml"
+    if not spec_file.exists():
+        return set()
+
+    data = yaml.safe_load(spec_file.read_text(encoding="utf-8"))
+    keywords = set()
+
+    for cap in data.get("capabilities", []):
+        if isinstance(cap, dict):
+            for key in ("name", "description"):
+                val = cap.get(key, "")
+                if val:
+                    keywords.update(val.replace("，", " ").replace("、", " ").split())
+
+    for cmd in data.get("commands", []):
+        if isinstance(cmd, dict):
+            name_val = cmd.get("name", "")
+            desc_val = cmd.get("description", "")
+            if name_val:
+                keywords.add(name_val)
+            if desc_val:
+                keywords.update(desc_val.replace("，", " ").replace("、", " ").split())
+
+    keywords.discard("")
+    return keywords
+
+
+def _get_field(obj, key, default=None):
+    """兼容 dict 和 dataclass 的字段访问。"""
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def find_similar_example(spec_data, threshold: float = 0.15) -> str | None:
+    """根据规约数据查找最相似的内置样例。
+
+    spec_data 可以是 dict 或 SkillSpec dataclass。
+    比较规约中的 capabilities/commands 字段与每个样例的关键词，
+    使用简单的关键词重叠度（Jaccard）。返回最相似的样例名，
+    未达到阈值则返回 None。
+    """
+    user_keywords = set()
+    for cap in _get_field(spec_data, "capabilities", []) or []:
+        if isinstance(cap, dict):
+            for key in ("name", "description"):
+                val = cap.get(key, "")
+                if val:
+                    user_keywords.update(val.replace("，", " ").replace("、", " ").split())
+    for cmd in _get_field(spec_data, "commands", []) or []:
+        if isinstance(cmd, dict):
+            for key in ("name", "description"):
+                val = cmd.get(key, "")
+                if val:
+                    user_keywords.update(val.replace("，", " ").replace("、", " ").split())
+    user_keywords.discard("")
+
+    if not user_keywords:
+        return None
+
+    best_name = None
+    best_score = 0.0
+    examples = list_examples()
+    for ex in examples:
+        ex_keywords = get_example_keywords(ex["name"])
+        if not ex_keywords:
+            continue
+        intersection = user_keywords & ex_keywords
+        union = user_keywords | ex_keywords
+        jaccard = len(intersection) / len(union) if union else 0
+        if jaccard > best_score:
+            best_score = jaccard
+            best_name = ex["name"]
+
+    if best_score >= threshold:
+        return best_name
+    return None

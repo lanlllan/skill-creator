@@ -1,0 +1,74 @@
+meta:
+  name: api-health-checker
+  description: "检查 API 端点的健康状态，支持批量探测和超时重试"
+  version: 1.0.0
+  author: "OpenClaw Team"
+  tags: [api, monitoring, health-check, advanced]
+  type: python
+
+purpose:
+  problem: "微服务架构中 API 端点众多，需要定期检查各端点的可用性和响应时间，手动逐一检查效率低下且容易遗漏。"
+  target_users: "运维工程师、SRE、后端开发者"
+  scenarios:
+    - "运维工程师在每日巡检时批量检查微服务集群中各服务的健康状态"
+    - "部署新版本后快速验证所有 API 端点是否正常响应"
+    - "集成到 CI/CD 流水线中，作为部署后的冒烟测试"
+
+capabilities:
+  - name: "单端点检查"
+    description: "发送 HTTP GET 请求检查指定 URL 的可用性，报告状态码和响应时间"
+    inputs: "API URL、超时秒数（可选）"
+    outputs: "状态码、响应时间（毫秒）、是否健康的判断"
+  - name: "批量探测"
+    description: "从配置文件读取端点列表，逐一检查并输出汇总报告"
+    inputs: "配置文件路径（YAML 格式）"
+    outputs: "每个端点的状态、失败端点列表、整体通过率"
+  - name: "健康报告"
+    description: "以 JSON 格式输出所有端点的详细检查结果，便于管道消费"
+    inputs: "配置文件路径"
+    outputs: "JSON 格式的检查结果数组"
+
+commands:
+  - name: check
+    description: "检查单个 API 端点的健康状态"
+    args:
+      - name: "--url"
+        description: "API 端点 URL"
+        type: string
+        required: true
+      - name: "--timeout"
+        description: "超时秒数（默认 5）"
+        type: integer
+        required: false
+  - name: batch
+    description: "从配置文件批量检查端点"
+    args:
+      - name: "--config"
+        description: "端点配置文件路径（YAML 格式）"
+        type: string
+        required: true
+  - name: report
+    description: "生成 JSON 格式的健康报告"
+    args:
+      - name: "--config"
+        description: "端点配置文件路径（YAML 格式）"
+        type: string
+        required: true
+      - name: "--output"
+        description: "报告输出文件路径（不指定则输出到 stdout）"
+        type: string
+        required: false
+
+error_handling:
+  - condition: "网络不可达或 DNS 解析失败"
+    action: "标记端点为 unreachable，继续检查其他端点"
+  - condition: "请求超时"
+    action: "标记端点为 timeout，记录超时时长"
+  - condition: "配置文件不存在或格式错误"
+    action: "返回错误信息，退出码 1"
+  - condition: "非 2xx 状态码"
+    action: "标记端点为 unhealthy，记录实际状态码"
+
+dependencies:
+  - "Python >= 3.9"
+  - "PyYAML（配置文件解析，已在 skill-creator 中安装）"
