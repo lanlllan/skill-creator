@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
+# __baseline__
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION="0.0.0"
+
+usage() {
+    cat <<EOF
+__Baseline__ v${VERSION}
+__baseline__
+
+用法:
+    bash run.sh <command> [options]
+
+命令:
+    example     示例命令
+    version     显示版本信息
+    help        显示帮助
+
+选项:
+    --verbose   详细输出
+    --help      显示帮助
+
+示例:
+    bash run.sh example --name test
+    bash run.sh version
+EOF
+}
+
+log_info()  { echo "ℹ️  $*"; }
+log_ok()    { echo "✅ $*"; }
+log_warn()  { echo "⚠️  $*"; }
+log_error() { echo "❌ $*" >&2; }
+
+cmd_example() {
+    local name="World"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name) name="$2"; shift 2 ;;
+            *) log_error "未知参数: $1"; return 1 ;;
+        esac
+    done
+    log_ok "Hello, ${name}!"
+}
+
+cmd_version() {
+    echo "__baseline__ v${VERSION}"
+}
+
+main() {
+    if [[ $# -eq 0 ]]; then
+        usage
+        exit 0
+    fi
+
+    local cmd="$1"; shift
+    case "${cmd}" in
+        example) cmd_example "$@" ;;
+        version) cmd_version ;;
+        help|--help|-h) usage ;;
+        *) log_error "未知命令: ${cmd}"; usage; exit 1 ;;
+    esac
+}
+
+main "$@"

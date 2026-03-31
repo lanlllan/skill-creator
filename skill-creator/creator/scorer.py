@@ -41,6 +41,9 @@ _TRIVIAL_SHELL = [
 _SKIP_PY_FUNCS = {'main', '__init__', '__bool__', '__repr__', '__str__'}
 
 
+_BASELINE_DIR = Path(__file__).resolve().parent.parent / 'templates'
+
+
 class SkillScorer:
     """Skill 质量评分器（满分 100 分）。
 
@@ -61,6 +64,9 @@ class SkillScorer:
         }
         self.remarks = []
         self._entry_script, self._entry_type = self._detect_entry_script()
+        self._template_retention: float = 0.0
+        self._example_only: bool = False
+        self._relevance_penalty: int = 0
 
     def _detect_entry_script(self) -> tuple[Path | None, str]:
         """检测入口脚本及其类型。"""
@@ -140,6 +146,18 @@ class SkillScorer:
         self.scores['functionality'] = score
         self.remarks.append(f"功能实现: {score}/25")
 
+    def _has_only_example_command(self, content: str) -> bool:
+        """检测入口脚本是否仅有 example 命令。"""
+        if self._entry_type == 'python':
+            if 'add_subparsers' not in content:
+                return False
+            parsers = re.findall(r"add_parser\(['\"]([a-z][a-z0-9-]*)['\"]", content)
+            return set(parsers) == {'example'}
+        else:
+            commands = re.findall(r'^\s*(\w[\w-]*)\)', content, re.MULTILINE)
+            real = [c for c in commands if c not in ('help', 'version', '*')]
+            return set(real) == {'example'}
+
     def _score_functionality_python(self, content: str) -> int:
         score = 0
         has_subparsers = 'add_subparsers' in content
@@ -166,7 +184,12 @@ class SkillScorer:
             score += 4
         if '--verbose' in content or '-v' in content:
             score += 4
-        return score
+
+        self._example_only = self._has_only_example_command(content)
+        if self._example_only:
+            score -= 5
+
+        return max(0, score)
 
     def _score_functionality_shell(self, content: str) -> int:
         score = 0
@@ -185,11 +208,16 @@ class SkillScorer:
             score += 2
         if '--dry-run' in content or 'DRY_RUN' in content:
             score += 4
-        if '--verbose' in content or 'VERBOSE' in content:
+        if re.search(r'--verbose[)|]', content) or 'VERBOSE=' in content:
             score += 4
         if 'usage()' in content or 'help' in content:
             score += 2
-        return score
+
+        self._example_only = self._has_only_example_command(content)
+        if self._example_only:
+            score -= 5
+
+        return max(0, score)
 
     # ------------------------------------------------------------------ #
     #  quality (20)
@@ -315,11 +343,51 @@ class SkillScorer:
         if broken_links == 0:
             score += 1
 
-        self.scores['docs'] = score
-        if broken_links > 0:
-            self.remarks.append(f"文档完备性: {score}/10 (失效链接 {broken_links} 处)")
+        self._relevance_penalty = self._docs_content_relevance()
+        score += self._relevance_penalty
+
+        self.scores['docs'] = max(0, score)
+        if self._relevance_penalty < 0:
+            self.remarks.append(
+                f"文档完备性: {self.scores['docs']}/10 "
+                f"(内容与 description 相关性不足，扣 {abs(self._relevance_penalty)} 分)")
+        elif broken_links > 0:
+            self.remarks.append(f"文档完备性: {self.scores['docs']}/10 (失效链接 {broken_links} 处)")
         else:
             self.remarks.append(f"文档完备性: {score}/10")
+
+    def _docs_content_relevance(self) -> int:
+        """检测 SKILL.md 核心章节内容与 description 的 2-gram 覆盖率。
+
+        覆盖率 < 20% 时返回 -5，否则返回 0。
+        """
+        skill_md = self.skill_dir / 'SKILL.md'
+        if not skill_md.exists():
+            return 0
+        content = skill_md.read_text(encoding='utf-8')
+
+        m = re.search(r'description:\s*(.+)', content)
+        if not m:
+            return 0
+        description = m.group(1).strip()
+        if len(description) < 4:
+            return 0
+
+        items = self._extract_section_list_items(content)
+        if not items:
+            return 0
+
+        desc_bigrams = {description[i:i+2] for i in range(len(description) - 1)}
+        if not desc_bigrams:
+            return 0
+
+        section_text = ' '.join(items)
+        covered = sum(1 for bg in desc_bigrams if bg in section_text)
+        coverage = covered / len(desc_bigrams)
+
+        if coverage < 0.2:
+            return -5
+        return 0
 
     # ------------------------------------------------------------------ #
     #  standard (10)
@@ -394,6 +462,44 @@ class SkillScorer:
     #  content (20) — Phase 12 新增
     # ------------------------------------------------------------------ #
 
+    def _load_baseline_lines(self, file_key: str) -> set[str]:
+        """加载基线文件的非空行集合（file_key: 'SKILL' 或 'run'）。"""
+        if self._entry_type not in ('python', 'shell'):
+            return set()
+        path = _BASELINE_DIR / self._entry_type / f'_baseline_{file_key}.txt'
+        if not path.exists():
+            return set()
+        text = path.read_text(encoding='utf-8')
+        return {l.strip() for l in text.splitlines() if l.strip()}
+
+    def _content_template_retention(self) -> float:
+        """计算 SKILL.md + 入口脚本的模板原文保留率。"""
+        total_actual = 0
+        total_matching = 0
+
+        skill_md = self.skill_dir / 'SKILL.md'
+        if skill_md.exists():
+            baseline = self._load_baseline_lines('SKILL')
+            if baseline:
+                actual = [l.strip() for l in
+                          skill_md.read_text(encoding='utf-8').splitlines()
+                          if l.strip()]
+                total_actual += len(actual)
+                total_matching += sum(1 for l in actual if l in baseline)
+
+        if self._entry_script and self._entry_script.exists():
+            baseline = self._load_baseline_lines('run')
+            if baseline:
+                actual = [l.strip() for l in
+                          self._entry_script.read_text(encoding='utf-8').splitlines()
+                          if l.strip()]
+                total_actual += len(actual)
+                total_matching += sum(1 for l in actual if l in baseline)
+
+        if total_actual == 0:
+            return 0.0
+        return total_matching / total_actual
+
     def _score_content(self):
         """内容密度 (20 分)"""
         score = 0
@@ -402,8 +508,17 @@ class SkillScorer:
         score += self._content_function_substance()
         score += self._content_usage_completeness()
         score += self._content_spec_coverage()
+
+        self._template_retention = self._content_template_retention()
+        if self._template_retention > 0.7:
+            score = min(score, 5)
+            self.remarks.append(
+                f'内容密度: {score}/20 '
+                f'(模板原文保留率 {self._template_retention:.0%}，已封顶)')
+        else:
+            self.remarks.append(f"内容密度: {score}/20")
+
         self.scores['content'] = score
-        self.remarks.append(f"内容密度: {score}/20")
 
     def _content_placeholder_residue(self) -> int:
         """SKILL.md 占位符残留率 (0-6 分)"""
@@ -652,6 +767,68 @@ class SkillScorer:
         else:
             return '⭐', '不可用'
 
+    def _generate_improvement_suggestions(self) -> list[dict]:
+        """生成可操作的改进建议，每项包含 delta（预估提升分值）和 action。"""
+        suggestions = []
+        skill_name = self.skill_dir.name
+        entry_name = self._entry_script.name if self._entry_script else 'run.py'
+
+        if self._template_retention > 0.7:
+            suggestions.append({
+                'delta': 20,
+                'action': f'使用交互式创建重新生成：python run.py create --interactive -n {skill_name}',
+                'reason': '交互式创建将引导逐步细化需求，生成包含 TODO 注释的业务骨架',
+            })
+
+        if self._example_only:
+            suggestions.append({
+                'delta': 5,
+                'action': f'在 {entry_name} 中将 cmd_example 替换为实际业务命令',
+                'reason': '当前仅有示例命令，评分器检测到无实际子命令',
+            })
+
+        if self._relevance_penalty < 0:
+            suggestions.append({
+                'delta': 5,
+                'action': '在 SKILL.md 中用具体场景替换占位文本',
+                'reason': '当前章节内容与 description 缺乏语义关联',
+            })
+
+        if self._entry_script:
+            content = self._entry_script.read_text(encoding='utf-8')
+            if '--dry-run' not in content and 'DRY_RUN' not in content:
+                suggestions.append({
+                    'delta': 3,
+                    'action': f'在 {entry_name} 中添加 --dry-run 选项',
+                    'reason': '支持预览模式提升功能完备性',
+                })
+            has_dep_check = any(kw in content for kw in
+                               ('shutil.which(', 'command -v', 'which '))
+            if not has_dep_check and 'FileNotFoundError' not in content:
+                suggestions.append({
+                    'delta': 2,
+                    'action': '添加命令可用性检查（shutil.which / command -v）',
+                    'reason': '确保外部依赖缺失时给出明确错误提示',
+                })
+
+        if self.scores['structure'] < 13:
+            missing = []
+            base = self.skill_dir
+            if not (base / 'USAGE.md').exists():
+                missing.append('USAGE.md')
+            if not (base / 'README.md').exists():
+                missing.append('README.md')
+            if not (base / 'templates').is_dir():
+                missing.append('templates/')
+            if missing:
+                suggestions.append({
+                    'delta': 2,
+                    'action': f'补充 {", ".join(missing)}',
+                    'reason': '完善文件结构',
+                })
+
+        return sorted(suggestions, key=lambda s: s['delta'], reverse=True)
+
     def generate_report(self) -> str:
         """生成文本评分报告。"""
         grade_icons, grade_text = self.get_grade()
@@ -664,30 +841,15 @@ class SkillScorer:
             "分项:\n"
         )
         report += '\n'.join(self.remarks)
-        report += "\n\n🏁 建议:\n"
+        report += "\n\n🏁 改进路径（按效果排序）：\n"
 
-        suggestions = []
-        if self.scores['structure'] < 13:
-            suggestions.append("补充 USAGE.md 和 README.md 文档")
-        if self.scores['functionality'] < 20:
-            if self._entry_type == 'shell':
-                suggestions.append("增加 --dry-run、--verbose 和更多子命令")
-            else:
-                suggestions.append("增加 --dry-run 和 --verbose 选项")
-        if self.scores['quality'] < 16:
-            if self._entry_type == 'shell':
-                suggestions.append("增强错误处理，添加 trap 和依赖检查")
-            else:
-                suggestions.append("增强异常处理，添加命令可用性检查")
-        if self.scores['docs'] < 8:
-            suggestions.append("完善故障排除表格和输出示例")
-        if self.scores['standard'] < 8:
-            suggestions.append("调整代码格式与目录结构以符合规范")
-        if self.scores['content'] < 14:
-            suggestions.append("减少占位符残留，丰富文档和代码的实质内容")
+        suggestions = self._generate_improvement_suggestions()
         if not suggestions:
-            suggestions.append("质量优秀，建议归档到主技能目录")
+            report += '  质量优秀，建议归档到主技能目录\n'
+        else:
+            for i, s in enumerate(suggestions, 1):
+                report += f'  {i}. [+{s["delta"]}分] {s["action"]}\n'
+                report += f'     → {s["reason"]}\n'
 
-        report += '\n'.join(f'  {i+1}. {s}' for i, s in enumerate(suggestions))
-        report += "\n\n"
+        report += "\n"
         return report
