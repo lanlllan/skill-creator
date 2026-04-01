@@ -377,7 +377,8 @@ class SkillScorer:
         if not items:
             return 0
 
-        desc_bigrams = {description[i:i+2] for i in range(len(description) - 1)}
+        from creator.text_utils import bigrams
+        desc_bigrams = bigrams(description)
         if not desc_bigrams:
             return 0
 
@@ -483,7 +484,7 @@ class SkillScorer:
             if baseline:
                 actual = [l.strip() for l in
                           skill_md.read_text(encoding='utf-8').splitlines()
-                          if l.strip()]
+                          if l.strip() and not l.strip().startswith('<!--')]
                 total_actual += len(actual)
                 total_matching += sum(1 for l in actual if l in baseline)
 
@@ -527,7 +528,9 @@ class SkillScorer:
             return 0
         content = skill_md.read_text(encoding='utf-8')
         lines = [l for l in content.splitlines()
-                 if l.strip() and not l.startswith('---')]
+                 if l.strip()
+                 and not l.startswith('---')
+                 and not l.strip().startswith('<!--')]
         if not lines:
             return 0
         hit_lines = sum(1 for line in lines
@@ -710,17 +713,8 @@ class SkillScorer:
     @staticmethod
     def _text_similarity(a: str, b: str) -> float:
         """基于字符 bigram 的 Jaccard 相似度，范围 [0, 1]。"""
-        if not a or not b:
-            return 0.0
-        def bigrams(s):
-            s = s.strip()
-            return set(s[i:i+2] for i in range(len(s) - 1)) if len(s) >= 2 else {s}
-        bg_a, bg_b = bigrams(a), bigrams(b)
-        if not bg_a or not bg_b:
-            return 0.0
-        intersection = bg_a & bg_b
-        union = bg_a | bg_b
-        return len(intersection) / len(union) if union else 0.0
+        from creator.text_utils import bigram_jaccard
+        return bigram_jaccard(a, b)
 
     @staticmethod
     def _collect_spec_fields(spec_data: dict) -> list:
@@ -766,6 +760,41 @@ class SkillScorer:
             return '⭐⭐', '待改进'
         else:
             return '⭐', '不可用'
+
+    def _generate_content_guidance(self) -> list[str]:
+        """content <= 5 时生成逐文件的内容填充指导。"""
+        guidance = []
+
+        skill_md = self.skill_dir / 'SKILL.md'
+        if skill_md.exists():
+            content = skill_md.read_text(encoding='utf-8')
+            lines = content.splitlines()
+            md_issues = []
+            for i, line in enumerate(lines, 1):
+                stripped = line.strip()
+                if any(p.search(stripped) for p in PLACEHOLDER_PATTERNS):
+                    md_issues.append((i, stripped))
+            if md_issues:
+                guidance.append('  📄 SKILL.md：')
+                for line_no, text in md_issues[:5]:
+                    guidance.append(f'    - 第 {line_no} 行：当前为模板默认文本 "{text[:40]}..."')
+                    guidance.append(f'      💡 请替换为具体的业务内容')
+
+        if self._entry_script and self._entry_script.exists():
+            content = self._entry_script.read_text(encoding='utf-8')
+            entry_name = self._entry_script.name
+            issues = []
+            if self._example_only:
+                issues.append('cmd_example 函数建议重命名为实际命令名')
+            todo_count = content.count('# TODO')
+            if todo_count > 0:
+                issues.append(f'发现 {todo_count} 处 TODO 标记，需替换为业务逻辑')
+            if issues:
+                guidance.append(f'  📄 {entry_name}：')
+                for issue in issues:
+                    guidance.append(f'    - {issue}')
+
+        return guidance
 
     def _generate_improvement_suggestions(self) -> list[dict]:
         """生成可操作的改进建议，每项包含 delta（预估提升分值）和 action。"""
@@ -850,6 +879,12 @@ class SkillScorer:
             for i, s in enumerate(suggestions, 1):
                 report += f'  {i}. [+{s["delta"]}分] {s["action"]}\n'
                 report += f'     → {s["reason"]}\n'
+
+        if self.scores.get('content', 0) <= 5:
+            guidance = self._generate_content_guidance()
+            if guidance:
+                report += '\n📋 内容填充指导（检测到当前内容与模板高度相似）：\n\n'
+                report += '\n'.join(guidance) + '\n'
 
         report += "\n"
         return report

@@ -218,7 +218,7 @@ class TestFindSimilarExample:
                 {"name": "batch", "description": "批量检查端点"},
             ]
         }
-        result = find_similar_example(spec)
+        result, score = find_similar_example(spec_data=spec)
         assert result == "api-health-checker"
 
     def test_file_analysis_spec(self):
@@ -232,7 +232,7 @@ class TestFindSimilarExample:
                 {"name": "types", "description": "文件类型分布"},
             ]
         }
-        result = find_similar_example(spec)
+        result, score = find_similar_example(spec_data=spec)
         assert result == "file-analyzer"
 
     def test_no_match_returns_none(self):
@@ -245,11 +245,11 @@ class TestFindSimilarExample:
                 {"name": "encrypt", "description": "加密数据流"},
             ]
         }
-        result = find_similar_example(spec)
+        result, score = find_similar_example(spec_data=spec)
         assert result is None
 
     def test_empty_spec_returns_none(self):
-        result = find_similar_example({})
+        result, score = find_similar_example(spec_data={})
         assert result is None
 
 

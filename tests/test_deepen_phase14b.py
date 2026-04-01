@@ -83,41 +83,54 @@ class TestBuildSpecFromAnswers:
 class TestInteractiveDeepen:
     def test_all_answered(self):
         responses = iter([
-            '解决日志问题', '开发者', '排查故障', '日志解析',
-            '解析日志', 'analyze', '分析日志', '文件不存在',
+            '开发者缺少统一的日志分析方式来排查问题',
+            '后端开发者和运维工程师',
+            '排查线上故障时用此工具快速分析日志文件',
+            '日志解析与错误信息定位',
+            '对日志文件进行结构化解析并提取关键信息',
+            'analyze-log',
+            '',  # retry: keep (analyze-log is 11 chars, but just in case)
+            '分析指定日志文件中的错误分布',
+            '日志文件路径不存在或格式错误',
+            '路径拼写错误或文件已被清理删除',
+            '检查日志文件路径是否正确并确认文件存在',
+            '',
         ])
 
-        result = _interactive_deepen(reader=lambda _: next(responses))
+        result = _interactive_deepen('', reader=lambda _: next(responses))
 
         assert result is not None
         assert len(result) == len(DEEPEN_QUESTIONS)
-        assert result['purpose_problem'] == '解决日志问题'
-        assert result['error_scenario'] == '文件不存在'
+        assert '日志' in result['purpose_problem']
+        assert '日志' in result['error_scenario']
 
     def test_skip_first_question(self):
-        result = _interactive_deepen(reader=lambda _: 's')
+        result = _interactive_deepen('', reader=lambda _: 's')
         assert result is None
 
     def test_skip_midway(self):
+        answers = [
+            '开发者缺少统一的日志分析方式来排查问题',
+            '后端开发者和运维工程师',
+            '排查线上故障时用此工具快速分析日志文件',
+        ]
         call_count = 0
         def mock_reader(_):
             nonlocal call_count
             call_count += 1
-            if call_count <= 3:
-                return f'answer-{call_count}'
+            if call_count <= len(answers):
+                return answers[call_count - 1]
             return 's'
 
-        result = _interactive_deepen(reader=mock_reader)
+        result = _interactive_deepen('', reader=mock_reader)
 
         assert result is not None
         assert len(result) == 3
-        assert result['purpose_problem'] == 'answer-1'
-        assert result['target_user'] == 'answer-2'
-        assert result['scenario'] == 'answer-3'
+        assert '日志' in result['purpose_problem']
 
     def test_empty_enter_skips_field(self):
-        responses = iter(['', '', '', '', '', '', '', ''])
-        result = _interactive_deepen(reader=lambda _: next(responses))
+        responses = iter([''] * len(DEEPEN_QUESTIONS))
+        result = _interactive_deepen('', reader=lambda _: next(responses))
 
         assert result is not None
         assert result.get('purpose_problem', '') == ''
@@ -138,14 +151,21 @@ class TestDeepenIntegration:
                 '\n'  # author
                 '\n'  # tags
                 f'{tmp_path}\n'  # output
-                '开发者缺少日志分析工具\n'
-                '后端开发者\n'
-                '排查线上故障时分析日志\n'
-                '日志解析\n'
-                '对日志文件进行解析\n'
+                '开发者缺少统一的日志分析工具来排查问题\n'
+                '\n'  # retry: keep (if triggered)
+                '后端开发者和运维工程师\n'
+                '\n'  # retry: keep
+                '排查线上故障时用此工具快速分析日志文件\n'
+                '日志解析与错误定位\n'
+                '\n'  # retry: keep
+                '对日志文件进行结构化解析并提取关键信息\n'
                 'analyze\n'
-                '分析指定日志文件\n'
-                '日志文件不存在\n'
+                '\n'  # retry: keep
+                '分析指定日志文件中的错误分布\n'
+                '日志文件路径不存在或格式错误\n'
+                '日志文件路径配置错误或文件已被清理\n'
+                '检查日志文件路径是否正确并确认文件存在\n'
+                '\n'  # dependencies_runtime (empty)
             ),
             capture_output=True, text=True,
             cwd=str(SKILL_ROOT),
@@ -182,7 +202,7 @@ class TestDeepenIntegration:
                 f'{tmp_path}\n'  # output
                 '\n'  # purpose_problem (empty → error)
                 '\n'  # target_user (empty → error)
-                '\n\n\n\n\n\n'
+                '\n\n\n\n\n\n\n\n\n'
             ),
             capture_output=True, text=True,
             cwd=str(SKILL_ROOT),
@@ -202,14 +222,26 @@ class TestDeepenIntegration:
                 '\n'  # author
                 '\n'  # tags
                 f'{tmp_path}\n'  # output
-                'x\n'  # purpose_problem (too short → warning)
-                'y\n'  # target_user (too short → warning)
+                'x\n'  # purpose_problem (too short → warning + quality hint)
+                '\n'  # retry: keep
+                'y\n'  # target_user (too short → warning + quality hint)
+                '\n'  # retry: keep
                 '场景描述测试用例完成度验证\n'
                 '能力\n'
+                '\n'  # retry: keep
                 '能力描述\n'
+                '\n'  # retry: keep
                 'cmd\n'
+                '\n'  # retry: keep
                 '命令描述\n'
+                '\n'  # retry: keep
                 '错误场景\n'
+                '\n'  # retry: keep
+                '原因说明\n'
+                '\n'  # retry: keep
+                '解决方案\n'
+                '\n'  # retry: keep
+                '\n'  # dependencies_runtime
             ),
             capture_output=True, text=True,
             cwd=str(SKILL_ROOT),

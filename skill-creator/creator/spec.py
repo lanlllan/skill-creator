@@ -476,10 +476,13 @@ def build_spec_from_answers(
         }],
         error_handling=[{
             'scenario': answers.get('error_scenario', '') or '',
-            'cause': '',
-            'solution': '',
+            'cause': answers.get('error_cause', '') or '',
+            'solution': answers.get('error_solution', '') or '',
         }],
-        dependencies={'runtime': [], 'external': []},
+        dependencies={
+            'runtime': [p.strip() for p in answers.get('dependencies_runtime', '').split(',') if p.strip()],
+            'external': [],
+        },
     )
 
 

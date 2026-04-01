@@ -1,0 +1,64 @@
+meta:
+  name: env-checker
+  description: "检查开发环境的依赖配置，验证 Python 版本、必备工具和环境变量是否就绪"
+  version: 1.0.0
+  author: "OpenClaw Team"
+  tags: [environment, dependency, check, configuration, beginner]
+  type: python
+
+purpose:
+  problem: "新成员加入项目或在新机器上搭建开发环境时，经常因缺少某个依赖或版本不对而浪费大量时间排查，缺少一键检查工具。"
+  target_users: "开发者、DevOps 工程师、新入职成员"
+  scenarios:
+    - "新成员入职后运行环境检查脚本，一键确认开发环境是否配置完整"
+    - "CI 流水线中作为第一步检测运行环境，避免因环境缺失导致后续步骤全部失败"
+    - "切换到新机器后快速验证所有必备工具（git、docker、node 等）是否已安装"
+
+capabilities:
+  - name: "环境检查"
+    description: "逐项检测 Python 版本、必备命令行工具和环境变量是否满足要求"
+    inputs: "检查规则（内置默认或用户自定义）"
+    outputs: "逐项通过/失败状态及总体结论"
+  - name: "环境报告"
+    description: "生成环境配置快照报告，汇总操作系统、Python 版本、已安装工具和环境变量"
+    inputs: "无（自动检测）"
+    outputs: "结构化环境信息摘要"
+
+commands:
+  - name: check
+    description: "检查开发环境是否满足要求"
+    args:
+      - name: "--tools"
+        description: "必须存在的命令行工具（逗号分隔，如 git,docker,node）"
+        type: string
+        required: false
+      - name: "--env-vars"
+        description: "必须设置的环境变量（逗号分隔，如 HOME,PATH）"
+        type: string
+        required: false
+      - name: "--python-min"
+        description: "Python 最低版本要求（如 3.9）"
+        type: string
+        required: false
+  - name: report
+    description: "生成环境配置快照报告"
+    args:
+      - name: "--format"
+        description: "输出格式（text / json，默认 text）"
+        type: string
+        required: false
+
+error_handling:
+  - condition: "检测的工具不在 PATH 中"
+    cause: "工具未安装或未添加到系统 PATH"
+    solution: "安装对应工具并确认其所在目录已加入 PATH 环境变量"
+  - condition: "Python 版本低于要求"
+    cause: "系统安装的 Python 版本过旧"
+    solution: "升级 Python 到所需最低版本"
+  - condition: "环境变量未设置"
+    cause: "未在 shell 配置文件中 export 对应变量"
+    solution: "在 .bashrc / .zshrc / 系统环境变量中添加对应 export"
+
+dependencies:
+  runtime: []
+  external: []
