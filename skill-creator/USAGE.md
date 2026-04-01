@@ -129,7 +129,7 @@ python run.py create \
 | `--version` | `-v` | 版本号（默认 1.0.0） | 否 |
 | `--author` | `-a` | 作者（默认 OpenClaw Assistant） | 否 |
 | `--tags` | `-t` | 标签，逗号分隔 | 否 |
-| `--output` | `-o` | 输出目录（默认在项目根下 `skills-temp/`） | 否 |
+| `--output` | `-o` | 输出目录（默认自动检测，见[路径解析](#-路径解析)） | 否 |
 | `--interactive` | `-i` | ⭐ 交互式模式（推荐，自动触发需求细化） | 否 |
 | `--type` | | Skill 类型：`python`（默认）或 `shell` | 否 |
 | `--template-dir` | | 自定义模板目录路径（覆盖内置模板） | 否 |
@@ -560,6 +560,43 @@ skill-name/
 
 ---
 
+## 📁 路径解析
+
+Skill Creator 根据运行环境自动选择路径策略，无需手动配置。
+
+### 环境变量（最高优先级）
+
+| 变量 | 说明 |
+|------|------|
+| `OPENCLAW_SKILLS_TEMP` | 显式覆盖临时 skill 输出目录 |
+| `OPENCLAW_SKILLS_DIR` | 显式覆盖 skill 归档目录 |
+| `SKILL_CREATOR_DEV` | 设为 `1` 强制开发模式 |
+
+### 自动模式检测
+
+未设置环境变量时，根据目录结构自动判定：
+
+| 模式 | 判定条件 | `get_skills_temp_dir` | `get_skills_dir` |
+|------|---------|----------------------|------------------|
+| 开发模式 | parent 下有 `.git/` 且 `tests/` | `<repo>/skills-temp/` | `<repo>/skills/` |
+| 安装模式 | 默认（安全侧倒） | `skill-creator/.skills-temp/` | `skill-creator/` 的 parent |
+
+**安装模式示例**（skill-creator 作为独立 Skill 安装到 OpenClaw）：
+
+```
+~/.openclaw/workspace/skills/         ← get_skills_dir() 指向此处
+├── skill-creator/
+│   ├── .skills-temp/                 ← get_skills_temp_dir()（内部隐藏，不外溢）
+│   │   └── new-skill/
+│   └── run.py
+├── other-skill/
+└── archived-skill/                   ← archive 归档到此处
+```
+
+安装模式下所有临时文件存放在 `skill-creator/.skills-temp/` 内部，不会污染 skills 共享目录。
+
+---
+
 ## 🐛 常见问题
 
 ### Q: 创建时提示"名称不符合规范"？
@@ -630,5 +667,5 @@ python run.py batch --file skills.yaml
 
 ---
 
-*Skill Creator 版本：v14.1.0*  
-*最后更新：2026-03-31*
+*Skill Creator 版本：v14.2.0*  
+*最后更新：2026-04-01*

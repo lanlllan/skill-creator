@@ -41,10 +41,16 @@ python -m pytest tests/ -v --tb=short
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `OPENCLAW_SKILLS_TEMP` | 临时 skill 输出目录 | `<安装目录>/../skills-temp/` |
-| `OPENCLAW_SKILLS_DIR` | skill 归档目录 | `<安装目录>/../skills/` |
+| `OPENCLAW_SKILLS_TEMP` | 覆盖临时 skill 输出目录 | 自动检测（见下方） |
+| `OPENCLAW_SKILLS_DIR` | 覆盖 skill 归档目录 | 自动检测（见下方） |
+| `SKILL_CREATOR_DEV` | 设为 `1` 强制开发模式 | 未设置（自动检测） |
 
-未设置时使用基于 `skill-creator/` 父目录的 fallback 路径，不依赖外部目录结构。
+**路径自动检测**：未设置 `OPENCLAW_*` 环境变量时，根据目录结构自动判定运行模式：
+
+- **开发模式**（parent 下有 `.git/` + `tests/`）：输出到 `<repo>/skills-temp/`，归档到 `<repo>/skills/`
+- **安装模式**（默认）：输出到 `skill-creator/.skills-temp/`（内部隐藏目录），归档到 skills 父目录
+
+安装模式下所有临时文件保持在 `skill-creator/` 内部，不外溢到 skills 共享目录。详见 [USAGE.md 路径解析](skill-creator/USAGE.md#-路径解析)。
 
 ## 项目结构
 
@@ -121,11 +127,22 @@ python -m pytest tests/ -v --tb=short
 | 14b | 创建流程融合（意图深化） | ✅ | v13.0.0 |
 | 14cd | 评分器校准 + 报告增强 | ✅ | v14.0.0 |
 | 14e | 文档重组 | ✅ | v14.1.0 |
+| 14f | 路径环境自适应 | ✅ | v14.2.0 |
 | 9 | 生态集成（ClawHub） | 🔲 远期 | — |
 
 ---
 
 ## 更新历史
+
+### v14.2.0（Phase 14f）— 2026-04-01
+
+**路径环境自适应**
+
+- `paths.py` 新增 `_is_dev_mode()` 三级判定（环境变量 > .git+tests 双信号 > 安装模式默认）
+- 安装模式下 `get_skills_temp_dir()` 指向 `skill-creator/.skills-temp/`（内部隐藏目录），不外溢
+- 安装模式下 `get_skills_dir()` 指向 `skill-creator/` 的 parent（即 skills 目录本身）
+- 新增 `SKILL_CREATOR_DEV=1` 环境变量强制开发模式
+- 新增 `.skillignore` 排除 `.skills-temp/`
 
 ### v14.1.0（Phase 14e）— 2026-03-31
 
