@@ -45,4 +45,6 @@ def main_examples(args) -> int:
     print("用法:")
     print("  python run.py examples --show <name>        查看样例详情")
     print("  python run.py examples --copy <name> -o .   复制样例到当前目录")
+    print()
+    print("💡 提示：运行 create --interactive 自动匹配类似样例并生成高质量骨架")
     return 0

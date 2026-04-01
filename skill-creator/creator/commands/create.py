@@ -453,7 +453,7 @@ def main_create(args):
             if errors:
                 reasons = '; '.join(errors[:3])
                 print(f'⚠️  深化信息不完整（{reasons}），已使用基础模板创建。')
-                print('   后续可运行 create --guided 重新创建。')
+                print('   后续可运行 create --interactive 重新创建。')
             else:
                 import tempfile
                 spec_variables = spec_to_template_vars(spec)

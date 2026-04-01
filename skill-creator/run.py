@@ -65,14 +65,15 @@ def main():
     create_parser.add_argument('--author', '-a', help='作者（默认 OpenClaw Assistant）')
     create_parser.add_argument('--tags', '-t', help='标签，逗号分隔（如 tool,utility）')
     create_parser.add_argument('--output', '-o', help='输出目录（默认由程序自动解析 skills-temp 路径）')
-    create_parser.add_argument('--interactive', '-i', action='store_true', help='交互式模式')
+    create_parser.add_argument('--interactive', '-i', action='store_true',
+                               help='交互式模式（推荐：自动触发需求细化，生成高质量骨架）')
     create_parser.add_argument('--type', choices=['python', 'shell'],
                                default='python', help='Skill 类型（默认 python）')
     create_parser.add_argument('--template-dir', help='自定义模板目录路径（覆盖内置模板）')
 
     create_spec_group = create_parser.add_mutually_exclusive_group()
     create_spec_group.add_argument('--guided', action='store_true',
-                                   help='引导式创建（先生成规约骨架，提示填充后再渲染）')
+                                   help='高级模式：仅生成规约骨架供手动编辑（适合需要精细控制规约内容的高级用户）')
     create_spec_group.add_argument('--spec', help='从已有规约文件创建（.skill-spec.yaml 路径）')
     create_parser.add_argument('--strict', action='store_true',
                                help='严格模式：规约验证有任何问题时阻断创建')
@@ -80,7 +81,11 @@ def main():
                                help='跳过意图深化（交互模式下直接用标准模板）')
 
     validate_parser = subparsers.add_parser('validate', help='验证 skill')
-    validate_parser.add_argument('path', help='skill 目录路径')
+    validate_parser.add_argument('paths', nargs='+', help='skill 目录路径（支持多个）')
+    validate_parser.add_argument('--recursive', '-r', action='store_true',
+                                 help='递归扫描目录下包含 SKILL.md 的一级子目录')
+    validate_parser.add_argument('--json', action='store_true',
+                                 help='JSON 格式输出（便于 CI 集成）')
     validate_parser.add_argument('--no-security', action='store_true',
                                  help='跳过安全扫描')
 
