@@ -302,4 +302,23 @@ def migrate_from_readme(project_root: Path = None) -> bool:
     regenerate_readme(project_root)
     skill_count = len(state["skills"])
     print(f"✅ 迁移完成：从 README.md 导入 {skill_count} 个 skill 状态")
+
+    _cleanup_old_backups(readme_path.parent, keep=1)
     return True
+
+
+def _cleanup_old_backups(directory: Path, keep: int = 1):
+    """保留最近 keep 个 .md.bak.* 文件，删除其余。"""
+    try:
+        backups = sorted(
+            directory.glob("README.md.bak.*"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for old in backups[keep:]:
+            try:
+                old.unlink()
+            except OSError:
+                pass
+    except OSError:
+        pass

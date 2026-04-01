@@ -305,6 +305,23 @@ def load_spec(path: Path) -> SkillSpec:
     )
 
 
+FIELD_GROUPS = {
+    'purpose': {'purpose.problem', 'purpose.target_user', 'purpose.scenarios'},
+    'capabilities': {'capabilities.name', 'capabilities.description'},
+    'commands': {'commands.name', 'commands.description'},
+    'error_handling': {'error_handling.scenario'},
+}
+
+
+def _classify_error_group(error_msg: str) -> str | None:
+    """从错误信息推断所属字段组。"""
+    for group, prefixes in FIELD_GROUPS.items():
+        for prefix in prefixes:
+            if prefix.split('.')[0] in error_msg.lower():
+                return group
+    return None
+
+
 def validate_spec(spec: SkillSpec) -> tuple[list[str], list[str]]:
     """验证规约完整性，返回 (errors, warnings)。"""
     errors: list[str] = []
@@ -320,6 +337,20 @@ def validate_spec(spec: SkillSpec) -> tuple[list[str], list[str]]:
         warnings.append("purpose.problem 与 meta.description 完全相同（应是扩展而非复制）")
 
     return errors, warnings
+
+
+def classify_errors_by_group(errors: list[str]) -> dict[str, list[str]]:
+    """将 errors 按字段组分类，返回 {group: [error_msgs]}。
+
+    无法归类的错误放在 'other' 组。
+    """
+    grouped: dict[str, list[str]] = {}
+    for err in errors:
+        group = _classify_error_group(err)
+        if group is None:
+            group = 'other'
+        grouped.setdefault(group, []).append(err)
+    return grouped
 
 
 def _check_non_empty(spec: SkillSpec, errors: list[str]):

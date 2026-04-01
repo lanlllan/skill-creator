@@ -17,7 +17,7 @@ from creator.examples import find_similar_example
 from creator.prefill import prefill_skill_content, upgrade_todo_comments
 from creator.state_manager import add_skill
 from creator.spec import (
-    generate_spec_skeleton, save_spec, load_spec, validate_spec,
+    generate_spec_skeleton, save_spec, load_spec, validate_spec, classify_errors_by_group,
     spec_to_template_vars, build_spec_from_answers, SPEC_FILENAME,
 )
 
@@ -347,6 +347,26 @@ DEEPEN_QUESTIONS = [
 ]
 
 
+_FIELD_MIN_LENGTH: dict[str, int] = {
+    'purpose_problem': 10,
+    'target_user': 3,
+    'scenario': 10,
+    'capability_name': 3,
+    'capability_desc': 5,
+    'command_name': 2,
+    'command_desc': 5,
+    'error_scenario': 5,
+    'error_cause': 5,
+    'error_solution': 5,
+    'dependencies_runtime': 0,
+}
+
+
+def _effective_length(text: str) -> int:
+    """计算有效内容长度（字符数），排除前后空白。"""
+    return len(text.strip())
+
+
 def _check_answer_quality(
     key: str,
     answer: str,
@@ -355,15 +375,17 @@ def _check_answer_quality(
     """检测深化答案质量，返回提示信息（None 表示通过）。
 
     规则（按优先级）：
-    1. 过短：len(answer.strip()) < 10
+    1. 过短：按字段差异化阈值
     2. 高重复：bigram_jaccard(answer, description) > 0.8
     3. 占位符：匹配 r'xxx|TODO|填写|示例|placeholder'
     """
     from creator.text_utils import bigram_jaccard
 
     stripped = answer.strip()
-    if len(stripped) < 10:
-        return f"答案可能过于简短（当前 {len(stripped)} 字，建议 10 字以上）"
+    min_len = _FIELD_MIN_LENGTH.get(key, 10)
+    length = _effective_length(stripped)
+    if min_len > 0 and length < min_len:
+        return f"答案可能过于简短（当前 {length} 字，建议 {min_len} 字以上）"
 
     if description and bigram_jaccard(stripped, description) > 0.8:
         return "建议补充 description 中未提及的细节"
@@ -394,6 +416,32 @@ def _interactive_deepen(description: str, reader=input) -> dict[str, str] | None
                     response = retry.strip()
         answers[key] = response
     return answers
+
+
+def _clear_spec_group(variables: dict, group: str):
+    """清除降级字段组的模板变量，使其回退到基础模板默认值。
+
+    purpose 组是嵌套字典 variables['purpose']={problem, target_user, scenarios}，
+    其余组（capabilities/commands/error_handling）为顶层列表。
+    """
+    if group == 'purpose':
+        purpose = variables.get('purpose')
+        if isinstance(purpose, dict):
+            purpose['problem'] = ''
+            purpose['target_user'] = ''
+            purpose['scenarios'] = []
+        return
+    top_level_keys = {
+        'capabilities': ['capabilities'],
+        'commands': ['commands'],
+        'error_handling': ['error_handling'],
+    }
+    for key in top_level_keys.get(group, []):
+        if key in variables:
+            if isinstance(variables[key], list):
+                variables[key] = []
+            elif isinstance(variables[key], str):
+                variables[key] = ''
 
 
 def main_create(args):
@@ -451,9 +499,24 @@ def main_create(args):
             for w in warnings:
                 print(f'  ⚠️  {w}')
             if errors:
-                reasons = '; '.join(errors[:3])
-                print(f'⚠️  深化信息不完整（{reasons}），已使用基础模板创建。')
-                print('   后续可运行 create --interactive 重新创建。')
+                grouped = classify_errors_by_group(errors)
+                degraded_groups = [g for g in grouped if g != 'other']
+                if degraded_groups and not grouped.get('other'):
+                    for group, errs in grouped.items():
+                        print(f'⚠️  {group} 信息不完整，该章节使用基础模板')
+                    import tempfile
+                    spec_variables = spec_to_template_vars(spec)
+                    for group in degraded_groups:
+                        _clear_spec_group(spec_variables, group)
+                    tmp = tempfile.NamedTemporaryFile(
+                        suffix='.yaml', delete=False, mode='w', encoding='utf-8')
+                    save_spec(spec, Path(tmp.name))
+                    tmp.close()
+                    tmp_spec_path = tmp.name
+                else:
+                    reasons = '; '.join(errors[:3])
+                    print(f'⚠️  深化信息不完整（{reasons}），已使用基础模板创建。')
+                    print('   后续可运行 create --interactive 重新创建。')
             else:
                 import tempfile
                 spec_variables = spec_to_template_vars(spec)
