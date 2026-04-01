@@ -112,6 +112,15 @@ def copy_example(
     return True, f"✅ 样例 '{name}' 已复制到 {target}（{file_count} 个文件）"
 
 
+def _extract_keywords_from_text(text: str) -> set[str]:
+    """从文本提取关键词：bigrams（中文特征）+ split（英文单词）双模式。"""
+    from creator.text_utils import bigrams
+    kw = set()
+    kw.update(bigrams(text))
+    kw.update(w for w in text.replace("，", " ").replace("、", " ").split() if w)
+    return kw
+
+
 def get_example_keywords(name: str) -> set[str]:
     """提取样例的关键词（基于 capabilities 和 commands 字段），用于相似度匹配。"""
     example_dir = EXAMPLES_DIR / name
@@ -127,7 +136,7 @@ def get_example_keywords(name: str) -> set[str]:
             for key in ("name", "description"):
                 val = cap.get(key, "")
                 if val:
-                    keywords.update(val.replace("，", " ").replace("、", " ").split())
+                    keywords.update(_extract_keywords_from_text(val))
 
     for cmd in data.get("commands", []):
         if isinstance(cmd, dict):
@@ -135,8 +144,9 @@ def get_example_keywords(name: str) -> set[str]:
             desc_val = cmd.get("description", "")
             if name_val:
                 keywords.add(name_val)
+                keywords.update(_extract_keywords_from_text(name_val))
             if desc_val:
-                keywords.update(desc_val.replace("，", " ").replace("、", " ").split())
+                keywords.update(_extract_keywords_from_text(desc_val))
 
     keywords.discard("")
     return keywords
@@ -178,16 +188,16 @@ def find_similar_example(
 
     两种匹配模式：
     - spec_data 非空：从 capabilities/commands 提取关键词（Jaccard，默认阈值 0.15）
-    - description 非空：2-gram Jaccard 与样例 description+capabilities 比较（默认阈值 0.3）
+    - description 非空：2-gram 覆盖率与样例 description+capabilities 比较（默认阈值 0.25）
     - 均为空：返回 (None, 0.0)
 
     Returns:
         (matched_example_name, similarity_score) 或 (None, 0.0)
     """
-    from creator.text_utils import bigram_jaccard
+    from creator.text_utils import bigram_coverage
 
     if description and not spec_data:
-        default_threshold = threshold if threshold is not None else 0.3
+        default_threshold = threshold if threshold is not None else 0.25
         best_name = None
         best_score = 0.0
         examples = list_examples()
@@ -195,7 +205,7 @@ def find_similar_example(
             ex_text = _get_example_description_keywords(ex["name"])
             if not ex_text:
                 continue
-            score = bigram_jaccard(description, ex_text)
+            score = bigram_coverage(description, ex_text)
             if score > best_score:
                 best_score = score
                 best_name = ex["name"]
@@ -213,13 +223,13 @@ def find_similar_example(
             for key in ("name", "description"):
                 val = cap.get(key, "")
                 if val:
-                    user_keywords.update(val.replace("，", " ").replace("、", " ").split())
+                    user_keywords.update(_extract_keywords_from_text(val))
     for cmd in _get_field(spec_data, "commands", []) or []:
         if isinstance(cmd, dict):
             for key in ("name", "description"):
                 val = cmd.get(key, "")
                 if val:
-                    user_keywords.update(val.replace("，", " ").replace("、", " ").split())
+                    user_keywords.update(_extract_keywords_from_text(val))
     user_keywords.discard("")
 
     if not user_keywords:

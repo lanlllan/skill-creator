@@ -48,12 +48,12 @@ class TestPrefill:
         assert result['skill_md'] is False
 
     def test_prefill_preserves_existing_content(self, tmp_path):
-        """已有丰富内容的章节不应被覆盖"""
+        """已有丰富内容的章节（>20字）不应被覆盖"""
         skill_dir = tmp_path / 'rich-skill'
         skill_dir.mkdir()
         existing = (
             '---\nname: rich-skill\ndescription: 文件分析\n---\n\n'
-            '## 适用场景\n\n- 已有非常详细的场景描述信息在此\n\n'
+            '## 适用场景\n\n- 已有非常详细的场景描述信息在此，内容非常充分足够保留\n\n'
             '## 核心能力\n\n'
         )
         skill_md = skill_dir / 'SKILL.md'
@@ -294,3 +294,49 @@ class TestTodoUpgrade:
         content = run_py.read_text(encoding='utf-8')
         assert 'import sys' in content
         assert 'def main():' in content
+
+
+class TestMatchedExamplePassthrough:
+    """matched_example 透传一致性：上游匹配结果直达 prefill，无二次匹配。"""
+
+    def test_prefill_with_explicit_matched_example(self, tmp_path):
+        """显式传入 matched_example 时跳过内部匹配，直接使用上游结果。"""
+        skill_dir = tmp_path / 'explicit-test'
+        skill_dir.mkdir()
+        skill_md = skill_dir / 'SKILL.md'
+        skill_md.write_text(
+            '---\nname: explicit-test\ndescription: 完全无关描述\n---\n\n'
+            '## 适用场景\n\n## 核心能力\n',
+            encoding='utf-8'
+        )
+        result = prefill_skill_content(
+            skill_dir, '完全无关描述', 'python',
+            matched_example='file-analyzer')
+        assert result['skill_md'] is True
+        content = skill_md.read_text(encoding='utf-8')
+        assert 'PRE-FILLED' in content
+        assert 'file-analyzer' in content
+
+    def test_prefill_and_todo_use_same_example(self, tmp_path):
+        """prefill 和 TODO 升级使用同一个 matched_example，结果一致。"""
+        skill_dir = tmp_path / 'consistency-test'
+        skill_dir.mkdir()
+        skill_md = skill_dir / 'SKILL.md'
+        skill_md.write_text(
+            '---\nname: consistency-test\ndescription: 文件统计\n---\n\n'
+            '## 适用场景\n\n## 核心能力\n',
+            encoding='utf-8'
+        )
+        run_py = skill_dir / 'run.py'
+        run_py.write_text(
+            '# TODO: 实现主要功能\ndef main():\n    pass\n',
+            encoding='utf-8'
+        )
+        example_name = 'file-analyzer'
+        prefill_result = prefill_skill_content(
+            skill_dir, '文件统计', 'python',
+            matched_example=example_name)
+        todo_result = upgrade_todo_comments(skill_dir, example_name, 'python')
+        assert prefill_result['skill_md'] is True
+        md_content = skill_md.read_text(encoding='utf-8')
+        assert example_name in md_content

@@ -137,14 +137,20 @@ def prefill_skill_content(
     skill_dir: Path,
     description: str,
     skill_type: str,
-    threshold: float = 0.3,
+    threshold: float = 0.25,
+    matched_example: str | None = None,
 ) -> dict[str, bool]:
     """对已创建的 skill 目录执行描述驱动预填充。
+
+    Args:
+        matched_example: 上游已匹配的样例名，非 None 时跳过内部二次匹配。
 
     Returns:
         {'skill_md': True/False, 'readme': True/False} 表示各文件是否被预填充
     """
-    matched, similarity = find_similar_example(description=description, threshold=threshold)
+    matched = matched_example
+    if not matched:
+        matched, _ = find_similar_example(description=description, threshold=threshold)
     if not matched:
         return {'skill_md': False, 'readme': False}
 
