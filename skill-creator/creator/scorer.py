@@ -21,6 +21,10 @@ PLACEHOLDER_PATTERNS: list[re.Pattern] = [
     re.compile(r"Hello,\s*\{.*?or\s*'World'\}"),
     re.compile(r'需要自动化处理特定任务'),
     re.compile(r'在以下场景中'),
+    re.compile(r'TODO:?\s*implement', re.IGNORECASE),
+    re.compile(r'your_\w+_here', re.IGNORECASE),
+    re.compile(r'CHANGE_ME'),
+    re.compile(r'\bplaceholder\b', re.IGNORECASE),
 ]
 
 TARGET_SECTIONS = ['适用场景', '核心能力']

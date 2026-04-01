@@ -2,6 +2,7 @@
 archive 命令 — 将 skill 从 skills-temp 归档到正式目录
 """
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 from creator.paths import get_skills_dir, get_skills_temp_dir
@@ -50,9 +51,19 @@ def main_archive(args):
             print(f"📦 [dry_run] 将创建目录：{dest_dir}")
 
     dst = dest_dir / skill_name
+    force = getattr(args, 'force', False)
     if dst.exists():
-        print(f"❌ 目标目录已存在，跳过归档：{dst}")
-        return 1
+        if not force:
+            print(f"❌ 目标目录已存在，跳过归档：{dst}")
+            print("   使用 --force 覆盖（会先备份现有目录）")
+            return 1
+        backup_name = f"{skill_name}.bak.{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        backup_dst = dest_dir / backup_name
+        if not dry_run:
+            shutil.move(str(dst), str(backup_dst))
+            print(f"📦 已备份现有目录：{dst.name} -> {backup_name}")
+        else:
+            print(f"📦 [dry_run] 将备份：{dst.name} -> {backup_name}")
 
     try:
         if not dry_run:

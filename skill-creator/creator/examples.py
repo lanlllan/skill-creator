@@ -73,8 +73,16 @@ def show_example(name: str) -> str:
     return skill_md.read_text(encoding="utf-8")
 
 
-def copy_example(name: str, output_dir: Path) -> tuple[bool, str]:
-    """将样例复制到指定目录。返回 (success, message)。"""
+def copy_example(
+    name: str,
+    output_dir: Path,
+    conflict: str = 'error',
+) -> tuple[bool, str]:
+    """将样例复制到指定目录。返回 (success, message)。
+
+    Args:
+        conflict: 冲突策略 — 'error'(默认), 'overwrite', 'rename'
+    """
     example_dir = EXAMPLES_DIR / name
     if not example_dir.is_dir():
         available = [d.name for d in EXAMPLES_DIR.iterdir() if d.is_dir() and not d.name.startswith(".")]
@@ -82,7 +90,21 @@ def copy_example(name: str, output_dir: Path) -> tuple[bool, str]:
 
     target = output_dir / name
     if target.exists():
-        return False, f"错误：目标目录已存在 — {target}"
+        if conflict == 'overwrite':
+            shutil.rmtree(target)
+        elif conflict == 'rename':
+            suffix = 1
+            while True:
+                renamed = output_dir / f"{name}-{suffix}"
+                if not renamed.exists():
+                    target = renamed
+                    break
+                suffix += 1
+        else:
+            return False, (
+                f"错误：目标目录已存在 — {target}\n"
+                f"  可选操作：覆盖（overwrite）/ 重命名（rename）/ 取消（cancel）"
+            )
 
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(example_dir, target)

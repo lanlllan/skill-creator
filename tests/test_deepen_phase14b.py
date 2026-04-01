@@ -208,7 +208,7 @@ class TestDeepenIntegration:
             cwd=str(SKILL_ROOT),
         )
         assert result.returncode == 0
-        assert '深化信息不完整' in result.stdout
+        assert '信息不完整' in result.stdout
         skill_dir = tmp_path / 'degrade-test'
         assert skill_dir.exists()
 
@@ -222,32 +222,23 @@ class TestDeepenIntegration:
                 '\n'  # author
                 '\n'  # tags
                 f'{tmp_path}\n'  # output
-                'x\n'  # purpose_problem (too short → warning + quality hint)
-                '\n'  # retry: keep
-                'y\n'  # target_user (too short → warning + quality hint)
-                '\n'  # retry: keep
-                '场景描述测试用例完成度验证\n'
-                '能力\n'
-                '\n'  # retry: keep
-                '能力描述\n'
-                '\n'  # retry: keep
-                'cmd\n'
-                '\n'  # retry: keep
-                '命令描述\n'
-                '\n'  # retry: keep
-                '错误场景\n'
-                '\n'  # retry: keep
-                '原因说明\n'
-                '\n'  # retry: keep
-                '解决方案\n'
-                '\n'  # retry: keep
+                '当需要自动化检测系统运行状态的时候使用此工具\n'
+                '运维工程师\n'
+                '运维人员在服务器异常时运行检测命令\n'
+                '状态检测\n'
+                '检测目标系统的运行状态\n'
+                'detect\n'
+                '执行一次完整的状态检测\n'
+                '目标服务器无法连接\n'
+                '网络不通或端口被占用\n'
+                '重启服务或更换端口\n'
                 '\n'  # dependencies_runtime
             ),
             capture_output=True, text=True,
             cwd=str(SKILL_ROOT),
         )
         assert result.returncode == 0
-        assert '深化信息不完整' not in result.stdout
+        assert '使用基础模板' not in result.stdout
         skill_dir = tmp_path / 'warn-test'
         assert skill_dir.exists()
 

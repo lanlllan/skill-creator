@@ -93,6 +93,8 @@ def main():
     archive_parser.add_argument('name', help='技能名称')
     archive_parser.add_argument('--source', '-s', help='源目录（默认从 skills-temp 查找）')
     archive_parser.add_argument('--dest', help='目标目录（默认为程序自动推导的 skills/ 路径）')
+    archive_parser.add_argument('--force', '-f', action='store_true',
+                                help='目标目录存在时覆盖（先备份再覆盖）')
     archive_parser.add_argument('--dry-run', action='store_true', help='演示操作不实际执行')
 
     clean_parser = subparsers.add_parser('clean', help='清理待确认技能目录')

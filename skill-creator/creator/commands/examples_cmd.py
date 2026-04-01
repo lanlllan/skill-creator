@@ -25,6 +25,18 @@ def main_examples(args) -> int:
     if copy_name:
         output_dir = Path(output) if output else Path(".")
         ok, msg = copy_example(copy_name, output_dir)
+        if not ok and '已存在' in msg:
+            print(msg)
+            try:
+                choice = input("  请选择 [o]覆盖 / [r]重命名 / [c]取消: ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                choice = 'c'
+            if choice == 'o':
+                ok, msg = copy_example(copy_name, output_dir, conflict='overwrite')
+            elif choice == 'r':
+                ok, msg = copy_example(copy_name, output_dir, conflict='rename')
+            else:
+                return 1
         print(msg)
         return 0 if ok else 1
 
