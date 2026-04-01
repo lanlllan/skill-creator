@@ -179,7 +179,8 @@ def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
                  skill_type: str = 'python',
                  template_dir: str | None = None,
                  spec_path: 'Path | None' = None,
-                 spec_variables: dict | None = None) -> int:
+                 spec_variables: dict | None = None,
+                 matched_example: str | None = None) -> int:
     """纯函数：从 params dict 创建 skill，返回退出码（0=成功，非0=失败）。
 
     params 字段契约（唯一来源，禁止双口径）：
@@ -272,11 +273,10 @@ def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
             if src_spec != dest_spec and src_spec.exists():
                 shutil.copy2(src_spec, dest_spec)
 
-        if not guided:
-            matched, similarity = find_similar_example(description=variables.get('description', ''))
-            if matched and similarity > 0.3:
-                prefill_skill_content(skill_dir, variables['description'], skill_type)
-                upgrade_todo_comments(skill_dir, matched, skill_type)
+        if matched_example:
+            prefill_skill_content(skill_dir, variables['description'], skill_type,
+                                  matched_example=matched_example)
+            upgrade_todo_comments(skill_dir, matched_example, skill_type)
 
         errors, warnings = validate_skill(skill_dir)
         if errors:
@@ -526,11 +526,18 @@ def main_create(args):
                 tmp.close()
                 tmp_spec_path = tmp.name
 
+    matched_example = None
+    if spec_variables:
+        matched_example, _ = find_similar_example(spec_data=spec)
+    if not matched_example:
+        matched_example, _ = find_similar_example(description=description)
+
     try:
         return create_skill(params, skill_type=skill_type,
                             template_dir=template_dir,
                             spec_path=tmp_spec_path,
-                            spec_variables=spec_variables)
+                            spec_variables=spec_variables,
+                            matched_example=matched_example)
     except ValueError as e:
         print(f"❌ {e}")
         return 1
@@ -635,7 +642,8 @@ def _create_from_spec(args) -> int:
         return create_skill(params, skill_type=skill_type,
                             template_dir=template_dir,
                             spec_path=spec_path,
-                            spec_variables=variables)
+                            spec_variables=variables,
+                            matched_example=similar)
     except ValueError as e:
         print(f"❌ {e}")
         return 1

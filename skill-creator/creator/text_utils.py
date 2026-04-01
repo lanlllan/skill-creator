@@ -18,3 +18,16 @@ def bigram_jaccard(text_a: str, text_b: str) -> float:
     if not a or not b:
         return 0.0
     return len(a & b) / len(a | b)
+
+
+def bigram_coverage(short_text: str, long_text: str) -> float:
+    """计算 short_text 的 2-gram 在 long_text 中的覆盖率。
+
+    适用于短描述 vs 长样例文本的相似度计算。
+    返回 [0.0, 1.0]，表示短文本有多少比例的 bigram 出现在长文本中。
+    """
+    short_bg = bigrams(short_text)
+    if not short_bg:
+        return 0.0
+    long_bg = bigrams(long_text)
+    return len(short_bg & long_bg) / len(short_bg)
