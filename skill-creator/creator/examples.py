@@ -127,14 +127,64 @@ def _get_field(obj, key, default=None):
     return getattr(obj, key, default)
 
 
-def find_similar_example(spec_data, threshold: float = 0.15) -> str | None:
-    """根据规约数据查找最相似的内置样例。
+def _get_example_description_keywords(name: str) -> str:
+    """提取样例的 description + capabilities 文本，用于 2-gram 匹配。"""
+    example_dir = EXAMPLES_DIR / name
+    spec_file = example_dir / ".skill-spec.yaml"
+    if not spec_file.exists():
+        return ""
+    data = yaml.safe_load(spec_file.read_text(encoding="utf-8"))
+    parts = []
+    meta = data.get("meta", {})
+    if isinstance(meta, dict) and meta.get("description"):
+        parts.append(str(meta["description"]))
+    for cap in data.get("capabilities", []):
+        if isinstance(cap, dict):
+            for key in ("name", "description"):
+                val = cap.get(key, "")
+                if val:
+                    parts.append(str(val))
+    return " ".join(parts)
 
-    spec_data 可以是 dict 或 SkillSpec dataclass。
-    比较规约中的 capabilities/commands 字段与每个样例的关键词，
-    使用简单的关键词重叠度（Jaccard）。返回最相似的样例名，
-    未达到阈值则返回 None。
+
+def find_similar_example(
+    spec_data: 'dict | object | None' = None,
+    description: str | None = None,
+    threshold: float | None = None,
+) -> tuple[str | None, float]:
+    """查找最相似的内置样例。
+
+    两种匹配模式：
+    - spec_data 非空：从 capabilities/commands 提取关键词（Jaccard，默认阈值 0.15）
+    - description 非空：2-gram Jaccard 与样例 description+capabilities 比较（默认阈值 0.3）
+    - 均为空：返回 (None, 0.0)
+
+    Returns:
+        (matched_example_name, similarity_score) 或 (None, 0.0)
     """
+    from creator.text_utils import bigram_jaccard
+
+    if description and not spec_data:
+        default_threshold = threshold if threshold is not None else 0.3
+        best_name = None
+        best_score = 0.0
+        examples = list_examples()
+        for ex in examples:
+            ex_text = _get_example_description_keywords(ex["name"])
+            if not ex_text:
+                continue
+            score = bigram_jaccard(description, ex_text)
+            if score > best_score:
+                best_score = score
+                best_name = ex["name"]
+        if best_score >= default_threshold:
+            return best_name, best_score
+        return None, 0.0
+
+    if spec_data is None:
+        return None, 0.0
+
+    default_threshold = threshold if threshold is not None else 0.15
     user_keywords = set()
     for cap in _get_field(spec_data, "capabilities", []) or []:
         if isinstance(cap, dict):
@@ -151,7 +201,7 @@ def find_similar_example(spec_data, threshold: float = 0.15) -> str | None:
     user_keywords.discard("")
 
     if not user_keywords:
-        return None
+        return None, 0.0
 
     best_name = None
     best_score = 0.0
@@ -167,6 +217,6 @@ def find_similar_example(spec_data, threshold: float = 0.15) -> str | None:
             best_score = jaccard
             best_name = ex["name"]
 
-    if best_score >= threshold:
-        return best_name
-    return None
+    if best_score >= default_threshold:
+        return best_name, best_score
+    return None, 0.0

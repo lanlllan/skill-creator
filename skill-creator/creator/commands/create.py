@@ -14,6 +14,7 @@ from creator.validators import validate_skill_name, validate_version
 from creator.templates import generate_files
 from creator.scorer import SkillScorer
 from creator.examples import find_similar_example
+from creator.prefill import prefill_skill_content, upgrade_todo_comments
 from creator.state_manager import add_skill
 from creator.spec import (
     generate_spec_skeleton, save_spec, load_spec, validate_spec,
@@ -271,6 +272,12 @@ def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
             if src_spec != dest_spec and src_spec.exists():
                 shutil.copy2(src_spec, dest_spec)
 
+        if not guided:
+            matched, similarity = find_similar_example(description=variables.get('description', ''))
+            if matched and similarity > 0.3:
+                prefill_skill_content(skill_dir, variables['description'], skill_type)
+                upgrade_todo_comments(skill_dir, matched, skill_type)
+
         errors, warnings = validate_skill(skill_dir)
         if errors:
             print("\n❌ 发现错误：")
@@ -326,18 +333,48 @@ def create_skill(params: dict, _out: dict = None, skip_state: bool = False,
 
 
 DEEPEN_QUESTIONS = [
-    ('purpose_problem',  '这个 skill 要解决什么问题？（1-2 句话描述痛点）'),
-    ('target_user',      '目标用户是谁？（5-15 字）'),
-    ('scenario',         '列举一个典型使用场景（谁+什么情况+做什么）'),
-    ('capability_name',  '主要能力名称（如「端点健康检查」）'),
-    ('capability_desc',  '该能力的描述（如「对 URL 发送 HTTP 请求...」）'),
-    ('command_name',     '主命令名称（如「check」）'),
-    ('command_desc',     '主命令描述（如「检查指定 URL 健康状态」）'),
-    ('error_scenario',   '可能遇到的错误场景（如「目标 URL 无法连接」）'),
+    ('purpose_problem',      '这个 skill 要解决什么问题？（1-2 句话描述痛点）'),
+    ('target_user',          '目标用户是谁？（5-15 字）'),
+    ('scenario',             '列举一个典型使用场景（谁+什么情况+做什么）'),
+    ('capability_name',      '主要能力名称（如「端点健康检查」）'),
+    ('capability_desc',      '该能力的描述（如「对 URL 发送 HTTP 请求...」）'),
+    ('command_name',         '主命令名称（如「check」）'),
+    ('command_desc',         '主命令描述（如「检查指定 URL 健康状态」）'),
+    ('error_scenario',       '可能遇到的错误场景（如「目标 URL 无法连接」）'),
+    ('error_cause',          '针对刚才的错误场景，通常是什么原因导致的？'),
+    ('error_solution',       '用户应该如何解决？（给出具体操作步骤）'),
+    ('dependencies_runtime', '运行时需要的 Python 包（逗号分隔，如 requests, pyyaml，无则回车跳过）'),
 ]
 
 
-def _interactive_deepen(reader=input) -> dict[str, str] | None:
+def _check_answer_quality(
+    key: str,
+    answer: str,
+    description: str,
+) -> str | None:
+    """检测深化答案质量，返回提示信息（None 表示通过）。
+
+    规则（按优先级）：
+    1. 过短：len(answer.strip()) < 10
+    2. 高重复：bigram_jaccard(answer, description) > 0.8
+    3. 占位符：匹配 r'xxx|TODO|填写|示例|placeholder'
+    """
+    from creator.text_utils import bigram_jaccard
+
+    stripped = answer.strip()
+    if len(stripped) < 10:
+        return f"答案可能过于简短（当前 {len(stripped)} 字，建议 10 字以上）"
+
+    if description and bigram_jaccard(stripped, description) > 0.8:
+        return "建议补充 description 中未提及的细节"
+
+    if re.search(r'xxx|TODO|填写|示例|placeholder', stripped, re.IGNORECASE):
+        return "请提供具体内容"
+
+    return None
+
+
+def _interactive_deepen(description: str, reader=input) -> dict[str, str] | None:
     """意图深化：通过问答收集 Skill 设计信息。首问 s 全跳过，中途 s 截断。"""
     print('\n🔍 意图深化 — 帮助生成更高质量的 Skill（输入 s 跳过全部）\n')
     answers = {}
@@ -347,6 +384,14 @@ def _interactive_deepen(reader=input) -> dict[str, str] | None:
             return None
         if response.lower() == 's':
             break
+        if response:
+            hint = _check_answer_quality(key, response, description)
+            if hint:
+                print(f"⚠️  {hint}")
+                print(f"    重新输入（或按 Enter 保留当前答案）：")
+                retry = reader("  > ")
+                if retry and retry.strip():
+                    response = retry.strip()
         answers[key] = response
     return answers
 
@@ -396,7 +441,7 @@ def main_create(args):
     skip_deepen = getattr(args, 'skip_deepen', False)
 
     if args.interactive and not skip_deepen:
-        answers = _interactive_deepen()
+        answers = _interactive_deepen(description)
         if answers is not None:
             spec = build_spec_from_answers(
                 answers, skill_name, description,
@@ -505,7 +550,7 @@ def _create_from_spec(args) -> int:
         print("规约验证未通过（--strict 模式）")
         return 1
 
-    similar = find_similar_example(spec)
+    similar, _ = find_similar_example(spec_data=spec)
     if similar:
         print(f"💡 建议：你的 Skill 设计与内置样例 \"{similar}\" 相似。")
         print(f"   运行 `python run.py examples --show {similar}` 查看参考实现。")

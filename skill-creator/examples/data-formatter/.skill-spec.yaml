@@ -1,0 +1,64 @@
+meta:
+  name: data-formatter
+  description: "在 JSON、CSV、YAML 格式之间转换数据，并验证文件结构合法性"
+  version: 1.0.0
+  author: "OpenClaw Team"
+  tags: [data, format, conversion, csv, json, yaml, intermediate]
+  type: python
+
+purpose:
+  problem: "开发者在对接不同系统时，经常需要手动转换数据格式（JSON↔CSV↔YAML），过程重复且易出错，缺少统一的转换与校验工具。"
+  target_users: "后端开发者、数据工程师、测试工程师"
+  scenarios:
+    - "数据工程师从第三方 API 获取 JSON 数据后需转为 CSV 导入 Excel 分析"
+    - "测试工程师将 CSV 格式的测试用例转为 YAML 配置供自动化框架使用"
+    - "开发者在发布前校验配置文件的 JSON/YAML 结构是否合法"
+
+capabilities:
+  - name: "格式转换"
+    description: "支持 JSON、CSV、YAML 之间的双向转换"
+    inputs: "源文件路径、目标格式"
+    outputs: "转换后的文件或标准输出"
+  - name: "结构校验"
+    description: "验证数据文件的格式合法性和结构完整性"
+    inputs: "文件路径"
+    outputs: "校验结果（合法/错误信息及行号）"
+
+commands:
+  - name: convert
+    description: "将数据文件从一种格式转换为另一种格式"
+    args:
+      - name: "--input"
+        description: "源文件路径"
+        type: string
+        required: true
+      - name: "--to"
+        description: "目标格式（json / csv / yaml）"
+        type: string
+        required: true
+      - name: "--output"
+        description: "输出文件路径（不指定则输出到 stdout）"
+        type: string
+        required: false
+  - name: validate
+    description: "校验数据文件的格式合法性"
+    args:
+      - name: "--input"
+        description: "待校验的文件路径"
+        type: string
+        required: true
+
+error_handling:
+  - condition: "源文件不存在"
+    cause: "路径拼写错误或文件被删除"
+    solution: "检查路径拼写，确认文件是否存在"
+  - condition: "格式解析失败（如 JSON 语法错误）"
+    cause: "文件内容不符合目标格式规范"
+    solution: "运行 validate 命令定位语法错误的具体位置"
+  - condition: "CSV 转 JSON 时列数不一致"
+    cause: "CSV 文件中某行字段数与表头不匹配"
+    solution: "检查 CSV 文件中的异常行，确保每行字段数一致"
+
+dependencies:
+  runtime: []
+  external: []
