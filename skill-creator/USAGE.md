@@ -133,7 +133,7 @@ python run.py create \
 | `--interactive` | `-i` | ⭐ 交互式模式（推荐，自动触发需求细化） | 否 |
 | `--type` | | Skill 类型：`python`（默认）或 `shell` | 否 |
 | `--template-dir` | | 自定义模板目录路径（覆盖内置模板） | 否 |
-| `--guided` | | ⭐ 引导式创建：生成规约骨架 → 填充 → 渲染为富内容产物 | 否 |
+| `--guided` | | 高级模式：仅生成规约骨架供手动编辑（适合需要精细控制规约内容的高级用户） | 否 |
 | `--spec` | | 从已有规约文件创建（`.skill-spec.yaml` 路径），自动使用富内容模板 | 否 |
 | `--strict` | | 严格模式：规约验证有任何问题时阻断创建 | 否 |
 | `--skip-deepen` | | 跳过意图深化（交互模式下直接用标准模板） | 否 |
@@ -156,11 +156,11 @@ python run.py create -n deploy-script -d "自动部署脚本" --type shell
 # 使用自定义模板目录
 python run.py create -n custom-skill -d "自定义模板" --template-dir ./my-templates
 
-# 引导式创建（先生成规约骨架）
-python run.py create --guided -n api-monitor -d "API 健康监控"
-
 # 从已有规约文件创建
 python run.py create --spec path/to/.skill-spec.yaml -o ./output
+
+# 高级：引导式创建（先生成规约骨架，需手动填充后再渲染）
+python run.py create --guided -n api-monitor -d "API 健康监控"
 
 # 严格模式（规约验证必须全部通过才创建）
 python run.py create --spec path/to/.skill-spec.yaml --strict
@@ -199,16 +199,28 @@ python run.py spec --validate path/to/.skill-spec.yaml
 ### `validate` - 验证现有 skill
 
 ```bash
+# 验证单个 skill
 python run.py validate ~/.openclaw/workspace/skills/test-writer
+
+# 批量验证多个 skill
+python run.py validate ./skill-a ./skill-b ./skill-c
+
+# 递归扫描目录下所有包含 SKILL.md 的子目录
+python run.py validate --recursive ./skills/
+
+# JSON 输出（便于 CI 集成）
+python run.py validate --json ./my-skill
 
 # 跳过安全扫描
 python run.py validate ./my-skill --no-security
 ```
 
-| 参数 | 说明 |
-|------|------|
-| `path` | skill 目录路径（位置参数） |
-| `--no-security` | 跳过安全扫描（默认开启） |
+| 参数 | 短 | 说明 |
+|------|---|------|
+| `paths` | | skill 目录路径（位置参数，支持多个） |
+| `--recursive` | `-r` | 递归扫描目录下包含 SKILL.md 的一级子目录 |
+| `--json` | | JSON 格式输出（`{skills: [{name, score, errors, warnings}]}`） |
+| `--no-security` | | 跳过安全扫描（默认开启） |
 
 **检查项**：
 - [ ] SKILL.md 存在

@@ -128,11 +128,25 @@ python -m pytest tests/ -v --tb=short
 | 14cd | 评分器校准 + 报告增强 | ✅ | v14.0.0 |
 | 14e | 文档重组 | ✅ | v14.1.0 |
 | 14f | 路径环境自适应 | ✅ | v14.2.0 |
+| 15 | 内容质量下限保护 | ✅ | v15.0.0 |
+| 16 | 创建流程收敛 + validate 批量 | 🔧 开发中 | — |
 | 9 | 生态集成（ClawHub） | 🔲 远期 | — |
 
 ---
 
 ## 更新历史
+
+### v15.0.0（Phase 15）— 2026-04-01
+
+**内容质量下限保护**
+
+- 描述驱动预填充：`prefill_skill_content()` 基于匹配样例自动填充 SKILL.md + README.md
+- TODO 注释升级：`upgrade_todo_comments()` 注入匹配样例的步骤参考（Python/Shell 跨类型回退）
+- 最低内容检测：content ≤ 5 分时输出逐行改进建议
+- 深化问答扩展：新增 `error_cause` / `error_solution` / `dependencies_runtime` 3 个问题
+- 深化答案质量预检：实时检测简短/重复/占位符回答，单次重试
+- 样例库扩容：新增 `data-formatter` + `env-checker`
+- 公共工具：`text_utils.py` 提供 `bigrams()` / `bigram_jaccard()`
 
 ### v14.2.0（Phase 14f）— 2026-04-01
 

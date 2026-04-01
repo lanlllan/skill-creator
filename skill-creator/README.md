@@ -14,14 +14,13 @@ python run.py create --interactive
 # 快速创建（跳过交互，直接生成模板）
 python run.py create -n my-skill -d "我的技能描述"
 
-# 引导式创建（生成规约骨架 → 填充 → 渲染富内容）
-python run.py create --guided -n api-monitor -d "API 健康监控"
-
 # 从规约创建
 python run.py create --spec .skill-spec.yaml
 
-# 验证现有 skill
+# 验证现有 skill（支持多路径和递归扫描）
 python run.py validate ./path/to/skill
+python run.py validate --recursive ./skills/
+python run.py validate --json ./path/to/skill
 
 # 安全扫描
 python run.py scan ./path/to/skill
