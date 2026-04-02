@@ -1,7 +1,6 @@
 ---
-description: OpenClaw Skill 目录结构和命名规范。创建新 Skill 时遵循此规则。
-alwaysApply: false
-globs: "**/SKILL.md"
+description: OpenClaw Skill 目录结构、命名规范和文件内容要求。创建新 Skill 时遵循。
+alwaysApply: true
 ---
 
 # Skill 目录结构
@@ -15,22 +14,68 @@ globs: "**/SKILL.md"
 
 ```
 my-skill/
-├── SKILL.md          # 技能元数据和文档（必需）
-├── run.py            # Python 入口脚本（Python 类型必需）
-│   或 run.sh         # Shell 入口脚本（Shell 类型必需）
+├── SKILL.md          # 技能元数据和文档（必需，格式见 skill-md-format 规则）
+├── run.py            # Python 入口脚本（Python 类型，格式见 skill-run-py 规则）
+│   或 run.sh         # Shell 入口脚本（Shell 类型，格式见 skill-run-py 规则）
 ├── README.md         # 简要说明（+2 结构分）
-├── USAGE.md          # 使用指南（+2 结构分）
-└── .skill-spec.yaml  # 规约文件（提升 content 评分）
+└── USAGE.md          # 使用指南（+2 结构分）
 ```
 
 ## 可选加分项
 
 - `templates/` 目录：+2 结构分
 - `config/` 或 `*.yaml` 配置文件：+1 结构分
+- `.skill-spec.yaml` 规约文件：无则满分（3/3），有则按填充率算分。只在需要记录结构化需求时创建。
 
-## .skill-spec.yaml 规约
+## README.md 内容要求
 
-如果创建 `.skill-spec.yaml`，填充以下字段：
+```markdown
+# my-skill
+
+一句话描述。
+
+## 快速开始
+
+\`\`\`bash
+python run.py <command> [options]
+\`\`\`
+
+## 安装
+
+运行依赖说明（如有）。
+
+## 文档
+
+- [SKILL.md](SKILL.md) — 技能详细说明
+- [USAGE.md](USAGE.md) — 完整命令参考
+```
+
+## USAGE.md 内容要求
+
+```markdown
+# 使用指南
+
+## 命令参考
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| scan | 扫描日志 | `python run.py scan --path /var/log/app.log` |
+
+## 示例
+
+\`\`\`bash
+# 完整用法示例
+python run.py scan --path /var/log/app.log --format json
+\`\`\`
+
+## 故障排除
+
+常见问题和解决方案。
+```
+
+## .skill-spec.yaml 规约（可选）
+
+仅在需要记录结构化需求定义时创建。注意：**未填充完整的 spec 会降低 content 评分**。
 
 ```yaml
 spec_version: "1.0"
@@ -41,7 +86,7 @@ meta:
   author: 作者名
   tags: [标签1, 标签2]
 purpose:
-  problem: 解决什么问题（10-200 字，不能与 description 完全相同）
+  problem: 解决什么问题（10-200 字，必须比 description 更详细）
   target_user: 目标用户（2-30 字）
   scenarios:
     - 具体使用场景描述（10-80 字/条）
@@ -62,11 +107,6 @@ error_handling:
     cause: 原因
     solution: 解决方案
 dependencies:
-  runtime: [pyyaml, requests]
+  runtime: []
   external: []
 ```
-
-**关键规则**：
-- `purpose.problem` 必须比 `meta.description` 更详细，不能是一字不差的复制
-- 不要照抄骨架中的示例文本（如"检查指定 URL 的健康状态"），必须写实际内容
-- 每个 capabilities 和 commands 至少一项有非空 name 和 description

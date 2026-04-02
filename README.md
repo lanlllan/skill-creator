@@ -29,7 +29,7 @@ cp rules/*.mdc <your-workspace>/.cursor/rules/
 
 模型参考 4 条规则即可生成目录结构、SKILL.md、run.py、README.md 等全部文件。无需 CLI 交互。
 
-**3. 校验（需要安装 CLI 工具）**
+**3. 校验（推荐，需安装 CLI 工具）**
 
 ```bash
 cd skill-creator
@@ -81,7 +81,7 @@ python run.py score <skill-dir>
 | 适用对象 | GPT-4、Claude 等强模型 | 能力有限的模型或人工开发者 |
 | 文件生成方 | AI 直接创建 | CLI 工具生成骨架 |
 | 需要安装 Rules | 是 | 否 |
-| 需要安装 CLI 工具 | 仅校验时需要 | 是（创建 + 校验） |
+| 需要安装 CLI 工具 | 推荐（用于精确评分和安全扫描） | 是（创建 + 校验） |
 | 交互流程 | 无 | 11 个问题引导 |
 | 典型评分 | ≥ 80（一步到位） | 60-75（需填充后迭代） |
 
@@ -263,6 +263,14 @@ python -m pytest tests/ -v --tb=short
 - 新增 `rules/` 目录：4 条 `.mdc` 文件，沉淀 17 个迭代阶段的核心经验
 - README 重构：双路径使用推荐（Rules 驱动 / CLI 辅助）
 - 项目定位从"CLI 工具"演进为"Rules + 校验工具集"
+- Rules 完备性：经 reviewer 高标准验收（2 轮阻塞修复 + 2 轮复审），覆盖结构/文档/脚本/质量四面
+  - 消除 6 处跨规则冗余，知识点各只定义一次
+  - 补充 Shell 类型（run.sh）完整模板和评分关注点
+  - 修正 `.skill-spec.yaml` 评分说明（无则满分，有则按填充率算）
+  - 分值映射改为"近似影响"，以 scorer.py 实际检测为准
+  - SKILL.md 章节分 L1（结构合法）/ L2（高分优化）两层
+  - 质量保障分自检层（无需 CLI）和工具验证层（推荐）
+  - 检查清单按 Python / Shell 分类型独立两套
 
 ### v1.22（Hotfix）— 2026-04-02
 

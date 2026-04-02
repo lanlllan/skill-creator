@@ -1,7 +1,6 @@
 ---
-description: Skill 质量评分维度、安全规则和常见陷阱。创建或审查 Skill 时参考。
-alwaysApply: false
-globs: "**/SKILL.md"
+description: Skill 质量评分总览、安全规则和常见陷阱。创建或审查 Skill 时参考。
+alwaysApply: true
 ---
 
 # Skill 质量标准
@@ -10,16 +9,16 @@ globs: "**/SKILL.md"
 
 | 维度 | 满分 | 核心要求 |
 |------|------|---------|
-| structure | 15 | 文件齐全：SKILL.md + 入口脚本 + README + USAGE |
-| functionality | 25 | 子命令、参数校验、--dry-run、--verbose、错误处理 |
-| quality | 20 | 函数数量、异常处理、依赖检查、docstring、状态 emoji |
-| docs | 10 | 五大章节齐全、内容与 description 语义相关、无死链 |
-| standard | 10 | 命名合规、frontmatter 正确、无 Jinja 占位符残留 |
+| structure | 15 | 文件齐全：SKILL.md + 入口脚本 + README + USAGE（详见 skill-structure 规则） |
+| functionality | 25 | 子命令、参数校验、--dry-run、--verbose（详见 skill-run-py 规则） |
+| quality | 20 | 函数数量、异常处理、依赖检查、docstring（详见 skill-run-py 规则） |
+| docs | 10 | 五大章节齐全、内容与 description 语义相关（详见 skill-md-format 规则） |
+| standard | 10 | 命名合规、frontmatter 正确、无 `{{ }}` 占位符残留 |
 | content | 20 | 无模板占位符、列表多样、函数有实质逻辑、spec 填充率 |
 
 **评级**：≥90 优秀 / ≥80 良好 / ≥70 可用 / ≥60 待改进 / <60 不可用
 
-## 安全扫描规则（自动检测）
+## 安全扫描规则
 
 **error 级（必须修复）**：
 - API 密钥泄露：OpenAI `sk-...`、AWS `AKIA...`、GitHub `ghp_...`、GitLab `glpat-...`
@@ -34,44 +33,62 @@ globs: "**/SKILL.md"
 ## 常见扣分陷阱
 
 ### 1. 模板保留率过高（content 封顶 5/20）
-如果生成的文件与模板原文重合度 > 70%，content 维度直接封顶为 5 分。必须用实际内容大量替换模板骨架文本。
+生成文件与模板原文重合度 > 70% 时，content 维度封顶 5 分。必须用实际内容替换模板文本。
 
 ### 2. 占位符残留（content 扣分）
 以下模式会被检测并扣分：
-- `场景1`、`场景2`、`能力1`、`功能点1`
-- `错误1`、`原因1`、`方案1`
-- `option1: value1`
-- `TODO implement`、`TODO:`、`FIXME:`
-- `your_xxx_here`、`CHANGE_ME`、`placeholder`
-- `请在此处`、`在这里填写`
+- 中文占位符：`场景1`、`能力1`、`功能点1`、`错误1`、`原因1`、`方案1`
+- 英文占位符：`TODO implement`、`TODO:`、`FIXME:`、`your_xxx_here`、`CHANGE_ME`、`placeholder`
+- 通用模式：`option1: value1`、`请在此处`、`在这里填写`
 
 ### 3. 只有 example 子命令（functionality -5）
-run.py 必须有至少 2 个有意义的子命令。仅有 `example` 命令会被扣 5 分。
+入口脚本至少 2 个有意义的子命令。仅有 `example` 命令扣 5 分。
 
 ### 4. 内容与 description 不相关（docs -5）
-SKILL.md 中 **适用场景** 和 **核心能力** 下的列表项必须与 frontmatter `description` 语义相关（2-gram 覆盖率 ≥ 20%）。不相关的泛泛描述会扣 5 分。
+SKILL.md 中适用场景和核心能力的列表项必须与 frontmatter `description` 语义相关（2-gram 覆盖率 ≥ 20%）。
 
 ### 5. Jinja 模板标记残留（standard -3）
-`.md`、`.py`、`.sh`、`.yaml` 文件中不得出现 `{{ ... }}` 语法（`.j2` 文件除外）。
+`.md`、`.py`、`.sh`、`.yaml` 文件中不得出现 `{{ ... }}` 语法。
 
-## 高分 Skill 检查清单
+## 质量保障
 
-- [ ] 目录名符合 `^[a-z][a-z0-9-]*$`
-- [ ] SKILL.md 有完整 YAML frontmatter（name, description, version, author, tags）
-- [ ] SKILL.md 包含 概述/核心能力/使用方式/示例/故障排除 五个章节
-- [ ] 适用场景列表 ≥ 3 项，每项具体（10-80 字），与 description 语义相关
-- [ ] run.py 有 Result 类、≥2 个子命令、--verbose、错误处理
-- [ ] 无占位符残留、无模板原文、无安全敏感内容
-- [ ] README.md 包含快速开始/安装说明
-- [ ] USAGE.md 包含命令参考和代码示例
-- [ ] 可选：.skill-spec.yaml 各字段已填充实际内容
+### 自检（无需 CLI）
 
-## 验证命令
+强模型按上述规则创建后，对照高分检查清单逐项自检即可。Rules 已涵盖评分器检测的核心要点，严格遵循 Rules 的产出通常可达 80+ 分。
 
-创建完成后，使用工具链验证：
+### 工具验证（推荐，需安装 CLI）
+
+如果安装了 skill-creator CLI 工具，可获得精确评分和可操作改进建议：
 
 ```bash
-python run.py validate <skill-dir>   # 结构+内容检查
-python run.py scan <skill-dir>       # 安全扫描
-python run.py score <skill-dir>      # 质量评分
+cd skill-creator
+python run.py validate <skill-dir>   # 结构验证 — 无 error
+python run.py scan <skill-dir>       # 安全扫描 — 无 error
+python run.py score <skill-dir>      # 质量评分 — 目标 >= 80
 ```
+
+在 CI/CD 或团队协作流程中，建议将三项工具验证作为交付门槛。
+
+## 高分检查清单
+
+**Python 类型**：
+- [ ] 目录名符合 `^[a-z][a-z0-9-]*$`
+- [ ] SKILL.md 有完整 YAML frontmatter + 5 个章节
+- [ ] 适用场景列表 >= 3 项，与 description 语义关联
+- [ ] run.py 有 Result 类、argparse 子命令（>= 2 个）、--verbose、docstring
+- [ ] 函数体有实际逻辑（非空/非 pass）
+- [ ] 无占位符残留、无 `{{ }}`、无安全敏感内容
+- [ ] README.md 含快速开始 + 安装说明
+- [ ] USAGE.md 含命令参考表格 + 代码示例
+- [ ] 若已安装 CLI：三个 Gate 全部通过
+
+**Shell 类型**：
+- [ ] 目录名符合 `^[a-z][a-z0-9-]*$`
+- [ ] SKILL.md 有完整 YAML frontmatter + 5 个章节
+- [ ] 适用场景列表 >= 3 项，与 description 语义关联
+- [ ] run.sh 有 `set -euo pipefail`、case/esac 分发（>= 2 子命令）、日志函数、usage 帮助
+- [ ] 函数体有实际逻辑
+- [ ] 无占位符残留、无 `{{ }}`、无安全敏感内容
+- [ ] README.md 含快速开始 + 安装说明
+- [ ] USAGE.md 含命令参考表格 + 代码示例
+- [ ] 若已安装 CLI：三个 Gate 全部通过

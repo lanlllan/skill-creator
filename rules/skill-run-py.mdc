@@ -1,12 +1,14 @@
 ---
-description: Skill 入口脚本 (run.py) 编写规范。编辑或创建 run.py 时遵循此规则。
+description: Skill 入口脚本编写规范（Python run.py 和 Shell run.sh）。
 alwaysApply: false
-globs: "**/run.py"
+globs: "{**/run.py,**/run.sh}"
 ---
 
-# run.py 入口脚本规范
+# 入口脚本规范
 
-## Result 数据类（标准返回类型）
+## Python 类型（run.py）
+
+### Result 数据类
 
 ```python
 from dataclasses import dataclass, field
@@ -30,10 +32,26 @@ class Result:
         return f"❌ 执行失败：{err_detail}"
 ```
 
-## argparse 标准模式
+### argparse + 子命令分发
 
 ```python
-import argparse, sys
+import argparse, sys, os
+
+def validate_input(path: str) -> Result:
+    """通用输入校验"""
+    if not path:
+        return Result(success=False, message="路径不能为空")
+    if not os.path.exists(path):
+        return Result(success=False, message=f"路径不存在：{path}")
+    return Result()
+
+def cmd_scan(args) -> Result:
+    """扫描并分析日志文件"""
+    check = validate_input(args.path)
+    if not check.success:
+        return check
+    # 实际业务逻辑
+    return Result(message=f"已扫描 {args.path}")
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -43,7 +61,6 @@ def main() -> int:
 
     sub = parser.add_subparsers(dest="command")
 
-    # 每个命令一个 subparser
     p_scan = sub.add_parser("scan", help="扫描日志")
     p_scan.add_argument("--path", required=True, help="文件路径")
     p_scan.add_argument("--format", choices=["json", "text"], default="text")
@@ -66,37 +83,90 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-## 子命令函数模式
+### 评分倾向项（functionality 25 分）
 
-```python
-def cmd_scan(args) -> Result:
-    """扫描并分析日志文件"""
-    path = args.path
-    if not os.path.exists(path):
-        return Result(success=False, message=f"文件不存在：{path}")
+以下特性会提升 functionality 维度得分。分值为近似值，最终评分以 `scorer.py` 实际检测为准。
 
+| 特性 | 近似影响 | 检测关键字 |
+|------|---------|-----------|
+| 子命令分发 | 高（~5） | `add_subparsers` 出现 + 实际子命令名 |
+| 必需参数 | 中（~2） | `required=True` 或 `--` 前缀参数 |
+| 枚举约束 | 中（~2） | `choices=` |
+| 异常处理 | 中（~2） | `try` / `except` 或 `if rc` |
+| 状态输出 | 中（~2） | 输出中包含 `❌` 模式 |
+| 退出码 | 中（~2） | `sys.exit` + `return 0` |
+| 预览模式 | 高（~4） | `--dry-run` / `dry_run` |
+| 详细输出 | 高（~4） | `--verbose` 或 `-v` |
+
+仅有 `example` 子命令会被扣分（~-5）。
+
+### quality 维度加分项（quality 20 分）
+
+| 特性 | 说明 |
+|------|------|
+| 函数数量 | 除 main 外有多个函数 |
+| 异常处理 | try/except 块 |
+| 依赖检查 | `shutil.which()` 或 `command -v` 检查外部工具是否存在 |
+| docstring | 函数有 `"""..."""` 文档字符串（评分按出现次数计） |
+| 状态 emoji | 输出中使用 ✅ ❌ ⚠️ 等状态前缀 |
+| 危险操作保护 | 涉及 `rm` / 删除时有确认提示或 dry-run |
+
+## Shell 类型（run.sh）
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+log_info()  { echo "ℹ️  $*"; }
+log_ok()    { echo "✅ $*"; }
+log_warn()  { echo "⚠️  $*" >&2; }
+log_error() { echo "❌ $*" >&2; }
+
+usage() {
+    cat <<EOF
+用法: $0 <command> [options]
+
+命令:
+  scan    扫描日志文件
+  stats   统计分析
+
+选项:
+  -v, --verbose  详细输出
+  -h, --help     帮助信息
+EOF
+}
+
+cmd_scan() {
+    local path="${1:?需要指定文件路径}"
+    if [[ ! -f "$path" ]]; then
+        log_error "文件不存在：$path"
+        return 1
+    fi
     # 实际业务逻辑
-    data = analyze(path)
-    return Result(message=f"已扫描 {len(data)} 条记录", data={"records": data})
+    log_ok "已扫描 $path"
+}
+
+cmd_stats() {
+    # 另一个子命令
+    log_info "统计分析..."
+}
+
+main() {
+    if [[ $# -eq 0 ]]; then
+        usage
+        exit 0
+    fi
+
+    local cmd="$1"; shift
+    case "${cmd}" in
+        scan)  cmd_scan "$@" ;;
+        stats) cmd_stats "$@" ;;
+        -h|--help) usage ;;
+        *) log_error "未知命令: ${cmd}"; usage; exit 1 ;;
+    esac
+}
+
+main "$@"
 ```
 
-## 评分加分项（functionality 维度 25 分）
-
-| 特性 | 分值 | 实现方式 |
-|------|------|---------|
-| `add_subparsers` | +5 | 必须有子命令，不能只有一个 `example` 命令 |
-| `required=True` 或 `--` 参数 | +2 | argparse 参数校验 |
-| `choices=` | +2 | 枚举约束 |
-| try/except 错误处理 | +2 | 异常捕获 |
-| `❌` 错误输出 | +2 | emoji 状态前缀 |
-| `sys.exit` + `return 0` | +2 | 正确退出码 |
-| `--dry-run` | +4 | 预览模式 |
-| `--verbose` / `-v` | +4 | 详细输出模式 |
-
-## 关键禁忌
-
-- **不要只有 `example` 子命令**：仅有 example 命令会扣 5 分
-- **不要留 TODO 占位符**：`# TODO implement`、`pass` 空实现会拉低 content 分
-- **不要用 `eval()` / `exec()` / `os.system()`**：安全扫描会标记为 warning
-- **不要 `subprocess.run(..., shell=True)`**：除非有充分理由
-- 函数体必须有实际逻辑，空函数或只 return None 的函数不算有效实现
+Shell 类型评分关注：`case/esac` 分发、`set -euo pipefail`、函数定义、错误输出、usage 帮助。
