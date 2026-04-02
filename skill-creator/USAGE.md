@@ -412,8 +412,10 @@ python run.py examples --copy api-health-checker -o ./my-skills
 | `simple-greeter` | 入门 | 问候工具，演示基本 argparse + Result 数据类 |
 | `file-analyzer` | 中等 | 文件分析器，演示文件系统遍历 + 统计报告 |
 | `api-health-checker` | 进阶 | API 健康检查，演示网络请求 + 批量检测 + YAML 配置 |
+| `data-formatter` | 中等 | 数据格式转换工具 |
+| `env-checker` | 中等 | 开发环境检查工具 |
 
-**相似推荐联动**：使用 `create --spec` 时，如果规约内容与某个内置样例相似，会自动提示可参考的样例名。
+**相似推荐联动**：创建时如果描述或规约内容与某个内置样例相似，会自动匹配并预填充参考内容。
 
 ---
 
@@ -679,5 +681,5 @@ python run.py batch --file skills.yaml
 
 ---
 
-*Skill Creator 版本：v14.2.0*  
-*最后更新：2026-04-01*
+*Skill Creator 版本：v2.0.0*  
+*最后更新：2026-04-02*

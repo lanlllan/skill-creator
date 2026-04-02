@@ -1,0 +1,72 @@
+---
+description: OpenClaw Skill 目录结构和命名规范。创建新 Skill 时遵循此规则。
+alwaysApply: false
+globs: "**/SKILL.md"
+---
+
+# Skill 目录结构
+
+## 命名规范
+
+- 目录名和 skill 名：`^[a-z][a-z0-9-]*$`（小写字母开头，仅含小写字母/数字/短横线）
+- 版本号：语义化 `x.y.z`（如 `1.0.0`）
+
+## 必需文件
+
+```
+my-skill/
+├── SKILL.md          # 技能元数据和文档（必需）
+├── run.py            # Python 入口脚本（Python 类型必需）
+│   或 run.sh         # Shell 入口脚本（Shell 类型必需）
+├── README.md         # 简要说明（+2 结构分）
+├── USAGE.md          # 使用指南（+2 结构分）
+└── .skill-spec.yaml  # 规约文件（提升 content 评分）
+```
+
+## 可选加分项
+
+- `templates/` 目录：+2 结构分
+- `config/` 或 `*.yaml` 配置文件：+1 结构分
+
+## .skill-spec.yaml 规约
+
+如果创建 `.skill-spec.yaml`，填充以下字段：
+
+```yaml
+spec_version: "1.0"
+meta:
+  name: my-skill
+  description: 一句话描述
+  version: 1.0.0
+  author: 作者名
+  tags: [标签1, 标签2]
+purpose:
+  problem: 解决什么问题（10-200 字，不能与 description 完全相同）
+  target_user: 目标用户（2-30 字）
+  scenarios:
+    - 具体使用场景描述（10-80 字/条）
+capabilities:
+  - name: 能力名称（2-30 字）
+    description: 能力描述（5-100 字）
+    inputs: 输入说明（3-80 字）
+    outputs: 输出说明（3-80 字）
+commands:
+  - name: 命令名（1-30 字）
+    description: 命令描述（3-80 字）
+    args:
+      - name: 参数名
+        description: 参数说明
+        type: string  # string | integer | boolean | float
+error_handling:
+  - scenario: 错误场景（3-60 字）
+    cause: 原因
+    solution: 解决方案
+dependencies:
+  runtime: [pyyaml, requests]
+  external: []
+```
+
+**关键规则**：
+- `purpose.problem` 必须比 `meta.description` 更详细，不能是一字不差的复制
+- 不要照抄骨架中的示例文本（如"检查指定 URL 的健康状态"），必须写实际内容
+- 每个 capabilities 和 commands 至少一项有非空 name 和 description

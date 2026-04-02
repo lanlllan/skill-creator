@@ -3,6 +3,7 @@
 .idea/
 .cursor/
 .agent_team/
+openspec/
 
 # Python
 __pycache__/
