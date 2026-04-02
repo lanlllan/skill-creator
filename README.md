@@ -68,10 +68,12 @@ skill-creator/                          ← Git 仓库根目录
 │   │   ├── security.py               # 安全扫描引擎
 │   │   ├── packager.py               # 打包引擎
 │   │   ├── spec.py                    # 规约引擎
-│   │   ├── examples.py               # 参考实现库
+│   │   ├── examples.py               # 参考实现库（5 个内置样例）
+│   │   ├── prefill.py                # 描述驱动预填充（样例匹配 + 内容适配）
+│   │   ├── text_utils.py             # 文本工具（bigram / Jaccard / coverage）
 │   │   └── commands/                  # 各 CLI 命令实现
 │   ├── templates/                     # Jinja2 模板目录
-│   ├── examples/                      # 内置参考样例
+│   ├── examples/                      # 内置参考样例（5 个）
 │   ├── SKILL.md                       # 技能元数据
 │   ├── USAGE.md                       # 使用指南
 │   ├── README.md                      # 工具说明
@@ -129,12 +131,59 @@ python -m pytest tests/ -v --tb=short
 | 14e | 文档重组 | ✅ | v14.1.0 |
 | 14f | 路径环境自适应 | ✅ | v14.2.0 |
 | 15 | 内容质量下限保护 | ✅ | v15.0.0 |
-| 16 | 创建流程收敛 + validate 批量 | 🔧 开发中 | — |
+| 16 | 创建流程收敛 + validate 批量 | ✅ | v16.0.0 |
+| 17 | 深化鲁棒性增强 | ✅ | v17.0.0 |
+| 17b | 工具链打磨 | ✅ | v17.1.0 |
+| hotfix | 预填充匹配算法修复 | ✅ | v17.2.0 |
 | 9 | 生态集成（ClawHub） | 🔲 远期 | — |
 
 ---
 
 ## 更新历史
+
+### v17.2.0（Hotfix prefill-matching）— 2026-04-02
+
+**预填充匹配算法修复**
+
+- 新增 `bigram_coverage()` 替代 `bigram_jaccard()` 用于短描述 vs 长样例文本匹配（覆盖率算法）
+- `find_similar_example` description 分支阈值从 0.3 下调至 0.25
+- spec-based 关键词提取改为 `bigrams()` + `split()` 双模式，修复中文文本无法分词的问题
+- 匹配逻辑从 `create_skill()` 上提至 `main_create()` 层：瀑布式匹配（spec → description 回退）
+- `prefill_skill_content()` 新增 `matched_example` 参数，上游匹配结果单一来源透传
+- 预填充命中率从 0% 恢复至正常水平
+
+测试：571 → 573 passed
+
+### v17.1.0（Phase 17b）— 2026-04-01
+
+**工具链打磨**
+
+- `archive --force`：已有同名 skill 时先备份再覆盖
+- `examples --copy` 冲突处理：支持 overwrite / rename / cancel 三种策略
+- `PLACEHOLDER_PATTERNS` 扩展英文模式（`TODO`, `FIXME`, `your ... here` 等）
+- `state_manager` 备份清理：保留最近 1 个 `.state.json.bak`
+
+### v17.0.0（Phase 17）— 2026-04-01
+
+**深化鲁棒性增强**
+
+- 按字段差异化阈值：`_FIELD_MIN_LENGTH` 替代全局 10 字阈值（如 `target_user` 仅 3 字）
+- CJK 长度计算：`_effective_length()` 按字符计数（非 `len()`）
+- 按字段组细粒度降级：`_clear_spec_group()` 支持 purpose / capabilities / commands / error_handling 独立回退
+- `_check_answer_quality()` 答案质量预检整合差异化阈值
+
+测试：531 → 565 passed
+
+### v16.0.0（Phase 16）— 2026-04-01
+
+**创建流程收敛 + validate 批量**
+
+- CLI 帮助文案收敛：`--interactive` 标注"推荐"，`--guided` 标注"高级模式"
+- `examples` 列表输出增加 `--interactive` 推荐提示
+- `validate` 支持多路径批量验证、`--recursive` 递归扫描、`--json` 结构化输出
+- 批量 validate 对不存在路径显式报错（纳入汇总 + JSON + 退出码 1）
+
+测试：511 → 531 passed
 
 ### v15.0.0（Phase 15）— 2026-04-01
 
@@ -146,7 +195,8 @@ python -m pytest tests/ -v --tb=short
 - 深化问答扩展：新增 `error_cause` / `error_solution` / `dependencies_runtime` 3 个问题
 - 深化答案质量预检：实时检测简短/重复/占位符回答，单次重试
 - 样例库扩容：新增 `data-formatter` + `env-checker`
-- 公共工具：`text_utils.py` 提供 `bigrams()` / `bigram_jaccard()`
+- 公共工具：`text_utils.py` 提供 `bigrams()` / `bigram_jaccard()` / `bigram_coverage()`
+- 新增预填充模块：`prefill.py`（描述驱动预填充 + TODO 注释升级 + 跨类型回退）
 
 ### v14.2.0（Phase 14f）— 2026-04-01
 
@@ -213,12 +263,14 @@ python -m pytest tests/ -v --tb=short
 
 **参考实现库（Reference Library）**
 
-- 内置 3 个高质量样例 Skill（均通过 validate + scan，评分 ≥ 85）：
+- 内置 5 个高质量样例 Skill（均通过 validate + scan，评分 ≥ 85）：
   - `simple-greeter`（入门）：问候工具
   - `file-analyzer`（中等）：文件分析器
   - `api-health-checker`（进阶）：API 健康检查
+  - `data-formatter`（Phase 15 新增）：数据格式转换
+  - `env-checker`（Phase 15 新增）：开发环境检查
 - 新增 `examples` 子命令：列出、查看、复制内置样例
-- `create --spec` 联动：自动推荐相似样例（Jaccard 相似度）
+- `create --spec` 联动：自动推荐相似样例
 
 新增文件：`examples/`、`creator/examples.py`、`tests/test_examples_phase13.py`
 测试：367 → 405 passed
